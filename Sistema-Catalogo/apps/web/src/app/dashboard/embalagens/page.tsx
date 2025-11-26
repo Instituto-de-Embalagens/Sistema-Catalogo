@@ -1,5 +1,6 @@
 "use client";
 
+import type React from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -17,8 +18,6 @@ import {
   Search,
   Filter,
   PlusCircle,
-  ArrowRight,
-  MoreVertical,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -127,7 +126,7 @@ export default function EmbalagensPage() {
   const [categoria, setCategoria] = useState("");
   const [linkDrive, setLinkDrive] = useState("");
   const [status, setStatus] = useState("ativo");
-
+  const [file, setFile] = useState<File | null>(null);
 
   // ======================
   // AUTH / USER / THEME
@@ -252,10 +251,9 @@ export default function EmbalagensPage() {
     setCategoria("");
     setLinkDrive("");
     setStatus("ativo");
+    setFile(null);
     setIsCreateOpen(true);
   }
-
-
 
   async function handleCreateSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -265,6 +263,39 @@ export default function EmbalagensPage() {
     setCreateError(null);
 
     try {
+      let finalUrl: string | null = linkDrive || null;
+
+      // Se tiver arquivo selecionado, faz upload primeiro
+      if (file) {
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadRes = await fetch(
+          `${API_BASE_URL}/packaging/upload`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              // NÃO setar Content-Type aqui, o browser cuida disso no multipart
+            },
+            body: formData,
+          }
+        );
+
+        const uploadData = await uploadRes.json();
+
+        if (!uploadRes.ok) {
+          setCreateError(
+            uploadData.error ||
+              "Erro ao enviar arquivo para o Drive. Tente novamente."
+          );
+          setCreating(false);
+          return;
+        }
+
+        finalUrl = uploadData.url || null;
+      }
+
       const res = await fetch(`${API_BASE_URL}/packaging`, {
         method: "POST",
         headers: {
@@ -278,9 +309,11 @@ export default function EmbalagensPage() {
           material: material || null,
           pais: pais || null,
           grafica: transformador || null,
-          url_imagem: linkDrive || null,
+          url_imagem: finalUrl,
           status,
-          tags: categoria || null,
+          // backend aceita array de tags ou string que ele split,
+          // aqui já mandamos como array bonitinho
+          tags: categoria ? [categoria] : [],
         }),
       });
 
@@ -468,10 +501,7 @@ export default function EmbalagensPage() {
                 </div>
 
                 {/* STATUS */}
-                <Select
-                  value={filterStatus}
-                  onValueChange={setFilterStatus}
-                >
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
                   <SelectTrigger>
                     <SelectValue placeholder="Status da embalagem" />
                   </SelectTrigger>
@@ -565,7 +595,9 @@ export default function EmbalagensPage() {
                                   Abrir
                                 </a>
                               ) : (
-                                <span className="text-xs text-muted-foreground">—</span>
+                                <span className="text-xs text-muted-foreground">
+                                  —
+                                </span>
                               )}
                             </td>
                           </tr>
@@ -575,7 +607,6 @@ export default function EmbalagensPage() {
                   </div>
                 )}
               </CardContent>
-
             </Card>
           </div>
         </main>
@@ -685,20 +716,39 @@ export default function EmbalagensPage() {
               </div>
             </div>
 
-          {/* LINK DO DRIVE */}
-          <div className="space-y-2">
-            <Label htmlFor="linkDrive">Link do arquivo no Drive</Label>
-            <Input
-              id="linkDrive"
-              value={linkDrive}
-              onChange={(e) => setLinkDrive(e.target.value)}
-              placeholder="https://drive.google.com/..."
-            />
-            <p className="text-xs text-muted-foreground">
-              Cole aqui o link compartilhável da embalagem no Google Drive.
-            </p>
-          </div>
+            {/* UPLOAD DE ARQUIVO PARA O DRIVE */}
+            <div className="space-y-2">
+              <Label htmlFor="file">Arquivo da embalagem (upload para Drive)</Label>
+              <Input
+                id="file"
+                type="file"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  setFile(f || null);
+                }}
+              />
+              <p className="text-xs text-muted-foreground">
+                Se você selecionar um arquivo aqui, ele será enviado para a pasta do Google Drive configurada
+                e o link será salvo automaticamente.
+              </p>
+            </div>
 
+            {/* LINK DO DRIVE MANUAL (OPCIONAL) */}
+            <div className="space-y-2">
+              <Label htmlFor="linkDrive">
+                Link do arquivo no Drive (opcional)
+              </Label>
+              <Input
+                id="linkDrive"
+                value={linkDrive}
+                onChange={(e) => setLinkDrive(e.target.value)}
+                placeholder="https://drive.google.com/..."
+              />
+              <p className="text-xs text-muted-foreground">
+                Caso não envie arquivo, você pode colar manualmente o link da embalagem
+                no Google Drive.
+              </p>
+            </div>
 
             <div className="space-y-1">
               <Label>Status</Label>

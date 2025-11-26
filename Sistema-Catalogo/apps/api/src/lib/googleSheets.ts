@@ -2,42 +2,71 @@
 import { google } from "googleapis";
 import { getGoogleAuth } from "./googleAuth";
 
-const SPREADSHEET_ID = process.env.SPREADSHEET_ID!; // já tem esse SPREAD-ID no log, né? coloca no .env
+const SPREADSHEET_ID =
+  process.env.GOOGLE_SHEETS_SPREADSHEET_ID || process.env.SPREADSHEET_ID;
 
+if (!SPREADSHEET_ID) {
+  throw new Error(
+    "SPREADSHEET_ID / GOOGLE_SHEETS_SPREADSHEET_ID não definido no .env"
+  );
+}
+
+// o tipo aqui bate com as colunas da tabela do Supabase
 export async function appendPackagingToSheet(packaging: {
   id: string;
   codigo: string;
   nome: string;
   marca?: string | null;
   material?: string | null;
+  dimensoes?: string | null;
   pais?: string | null;
+  data_cadastro?: string | null;
   grafica?: string | null;
   url_imagem?: string | null;
-  status: string;
   tags?: string[] | null;
+  localizacao?: string | null;
+  eventos?: string | null;
+  livros?: string | null;
+  observacoes?: string | null;
+  status: string;
+  criado_por?: string | null;
+  data_criacao?: string | null;
+  modificado_por?: string | null;
+  data_modificacao?: string | null;
 }) {
   const auth = getGoogleAuth();
   const sheets = google.sheets({ version: "v4", auth });
 
-  // aqui você escolhe como quer organizar as colunas na planilha
+  // ORDEM EXATA DAS COLUNAS DA PLANILHA:
+  // ID | Código | Nome | Marca | Material | Dimensões | País | Data Cadastro
+  // Transformador | URL Imagem | Categorias | Localização | Eventos | Livros
+  // Observações | Status | Criado Por | Data Criação | Modificado Por | Data Modificação
   const row = [
-    packaging.id,
-    packaging.codigo,
-    packaging.nome,
-    packaging.marca || "",
-    packaging.material || "",
-    packaging.pais || "",
-    packaging.grafica || "",
-    packaging.status || "",
-    packaging.tags?.join(", ") || "",
-    packaging.url_imagem || "",
-    new Date().toISOString(), // data de cadastro
+    packaging.id,                                // ID
+    packaging.codigo,                            // Código
+    packaging.nome,                              // Nome
+    packaging.marca || "",                       // Marca
+    packaging.material || "",                    // Material
+    packaging.dimensoes || "",                   // Dimensões
+    packaging.pais || "",                        // País
+    packaging.data_cadastro || "",               // Data Cadastro
+    packaging.grafica || "",                     // Transformador
+    packaging.url_imagem || "",                  // URL Imagem
+    packaging.tags?.join(", ") || "",            // Categorias
+    packaging.localizacao || "",                 // Localização
+    packaging.eventos || "",                     // Eventos
+    packaging.livros || "",                      // Livros
+    packaging.observacoes || "",                 // Observações
+    packaging.status || "",                      // Status
+    packaging.criado_por || "",                  // Criado Por
+    packaging.data_criacao || "",                // Data Criação
+    packaging.modificado_por || "",              // Modificado Por
+    packaging.data_modificacao || "",            // Data Modificação
   ];
 
-  // exemplo de aba: "Embalagens" (primeira linha sendo o cabeçalho)
   await sheets.spreadsheets.values.append({
     spreadsheetId: SPREADSHEET_ID,
-    range: "Embalagens!A:K", // ajusta pro número de colunas
+    range: "Embalagens!A:T", // agora vão 20 colunas (A até T)
     valueInputOption: "USER_ENTERED",
     requestBody: {
       values: [row],

@@ -1,32 +1,9 @@
+// apps/api/src/lib/googleDrive.ts
 import { google } from "googleapis";
 import { Readable } from "stream";
+import { getGoogleAuth } from "../services/google/googleAuth"; // ajuste o path conforme seu projeto
 
-const {
-  GOOGLE_SERVICE_ACCOUNT_EMAIL,
-  GOOGLE_PRIVATE_KEY,
-  GOOGLE_DRIVE_FOLDER_ID,
-} = process.env;
-
-const SCOPES = ["https://www.googleapis.com/auth/drive.file"];
-
-function getDriveClient() {
-  if (!GOOGLE_SERVICE_ACCOUNT_EMAIL) {
-    throw new Error("GOOGLE_SERVICE_ACCOUNT_EMAIL não definido no .env");
-  }
-  if (!GOOGLE_PRIVATE_KEY) {
-    throw new Error("GOOGLE_PRIVATE_KEY não definido no .env");
-  }
-
-  const privateKey = GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n");
-
-  const auth = new google.auth.JWT({
-    email: GOOGLE_SERVICE_ACCOUNT_EMAIL,
-    key: privateKey,
-    scopes: SCOPES,
-  });
-
-  return google.drive({ version: "v3", auth });
-}
+const FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID;
 
 type UploadParams = {
   buffer: Buffer;
@@ -39,20 +16,21 @@ export async function uploadFileToDrive({
   mimeType,
   originalName,
 }: UploadParams): Promise<string> {
-  const drive = getDriveClient();
+  if (!FOLDER_ID) {
+    throw new Error("GOOGLE_DRIVE_FOLDER_ID não está definido.");
+  }
+
+  const auth = getGoogleAuth(); // usa a mesma auth para tudo (Drive, Sheets, etc.)
+  const drive = google.drive({ version: "v3", auth });
 
   const fileMetadata: any = {
     name: originalName,
+    parents: [FOLDER_ID],
   };
 
-  if (GOOGLE_DRIVE_FOLDER_ID) {
-    fileMetadata.parents = [GOOGLE_DRIVE_FOLDER_ID];
-  }
-
-  // 🔹 aqui está o pulo do gato: usar stream em vez de Buffer
   const media = {
     mimeType,
-    body: Readable.from(buffer),
+    body: Readable.from(buffer), // melhor do que mandar o Buffer “cru”
   };
 
   const createRes = await drive.files.create({
@@ -76,10 +54,10 @@ export async function uploadFileToDrive({
     },
   });
 
-  const url = file.webViewLink || file.webContentLink;
-  if (!url) {
-    throw new Error("Arquivo criado mas sem URL pública retornada");
-  }
+  const url =
+    file.webViewLink ||
+    file.webContentLink ||
+    `https://drive.google.com/uc?export=view&id=${file.id}`;
 
   return url;
 }

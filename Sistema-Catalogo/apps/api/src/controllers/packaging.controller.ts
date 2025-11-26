@@ -2,6 +2,8 @@
 import { Response } from "express";
 import { supabase } from "../services/supabase";
 import { AuthenticatedRequest } from "../auth/authMiddleware";
+import { appendPackagingToSheet } from "../lib/googleSheets";
+import { uploadFileToDrive } from "../lib/googleDrive";
 
 // GET /packaging
 // filtros opcionais: ?status=ativo&material=Papel&pais=Brasil&q=texto&tag=algumaTag&page=1&pageSize=20
@@ -25,7 +27,7 @@ export async function listPackaging(req: AuthenticatedRequest, res: Response) {
     let query = supabase
       .from("embalagens")
       .select(
-        "id, codigo, nome, marca, material, pais, data_cadastro, url_imagem, tags, status",
+        "id, codigo, nome, marca, material, pais, data_cadastro, url_imagem, tags, status, grafica",
         { count: "exact" }
       );
 
@@ -101,7 +103,7 @@ export async function createPackaging(
   res: Response
 ) {
   try {
-    const userId = req.user?.sub;
+    const userEmail = req.user?.email;
 
     const {
       codigo,
@@ -140,13 +142,17 @@ export async function createPackaging(
           data_cadastro: data_cadastro || null,
           grafica: grafica || null,
           url_imagem: url_imagem || null,
-          tags: Array.isArray(tags) ? tags : tags ? String(tags).split(",") : null,
+          tags: Array.isArray(tags)
+            ? tags
+            : tags
+            ? String(tags).split(",")
+            : null,
           localizacao: localizacao || null,
           eventos: eventos || null,
           livros: livros || null,
           observacoes: observacoes || null,
           status: status || "ativo",
-          criado_por: userId || null,
+          criado_por: userEmail || null,
           data_criacao: new Date().toISOString(),
         },
       ])
@@ -156,6 +162,13 @@ export async function createPackaging(
     if (error) {
       console.error("Erro ao criar embalagem:", error);
       return res.status(500).json({ error: "Erro ao criar embalagem" });
+    }
+
+    // Best-effort: registra na planilha, mas não quebra a criação se der erro
+    try {
+      await appendPackagingToSheet(data);
+    } catch (sheetErr) {
+      console.error("Erro ao registrar embalagem na planilha:", sheetErr);
     }
 
     return res.status(201).json({ embalagem: data });
@@ -171,7 +184,7 @@ export async function updatePackaging(
   res: Response
 ) {
   try {
-    const userId = req.user?.sub;
+    const userEmail = req.user?.email;
     const { id } = req.params;
 
     const {
@@ -193,7 +206,7 @@ export async function updatePackaging(
     } = req.body;
 
     const updatePayload: Record<string, any> = {
-      modificado_por: userId || null,
+      modificado_por: userEmail || null,
       data_modificacao: new Date().toISOString(),
     };
 
@@ -238,7 +251,9 @@ export async function updatePackaging(
     return res.json({ embalagem: data });
   } catch (err) {
     console.error("Erro inesperado em updatePackaging:", err);
-    return res.status(500).json({ error: "Erro interno ao atualizar embalagem" });
+    return res
+      .status(500)
+      .json({ error: "Erro interno ao atualizar embalagem" });
   }
 }
 
@@ -248,14 +263,14 @@ export async function softDeletePackaging(
   res: Response
 ) {
   try {
-    const userId = req.user?.sub;
+    const userEmail = req.user?.email;
     const { id } = req.params;
 
     const { data, error } = await supabase
       .from("embalagens")
       .update({
         status: "arquivado",
-        modificado_por: userId || null,
+        modificado_por: userEmail || null,
         data_modificacao: new Date().toISOString(),
       })
       .eq("id", id)
@@ -274,6 +289,44 @@ export async function softDeletePackaging(
     return res.json({ embalagem: data });
   } catch (err) {
     console.error("Erro inesperado em softDeletePackaging:", err);
-    return res.status(500).json({ error: "Erro interno ao arquivar embalagem" });
+    return res
+      .status(500)
+      .json({ error: "Erro interno ao arquivar embalagem" });
+  }
+}
+
+// POST /packaging/upload
+// recebe arquivo (campo "file") via multipart/form-data e envia para o Drive
+export async function uploadPackagingFile(
+  req: AuthenticatedRequest,
+  res: Response
+) {
+  try {
+    const file = (req as any).file as
+      | {
+          buffer: Buffer;
+          mimetype: string;
+          originalname: string;
+        }
+      | undefined;
+
+    if (!file) {
+      return res
+        .status(400)
+        .json({ error: "Arquivo não enviado (campo 'file')." });
+    }
+
+    const publicUrl = await uploadFileToDrive({
+      buffer: file.buffer,
+      mimeType: file.mimetype,
+      originalName: file.originalname,
+    });
+
+    return res.json({ url: publicUrl });
+  } catch (err) {
+    console.error("Erro ao enviar arquivo para o Drive:", err);
+    return res
+      .status(500)
+      .json({ error: "Erro interno ao enviar arquivo para o Drive." });
   }
 }
