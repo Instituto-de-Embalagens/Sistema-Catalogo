@@ -16,44 +16,52 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true);
-    setErrorMsg("");
+async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+  setLoading(true);
+  setErrorMsg("");
 
-    try {
-      const API_BASE_URL =
-        process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
+  try {
+    const API_BASE_URL =
+      process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
 
-      const res = await fetch(`${API_BASE_URL}/auth/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, senha: password }),
+    const res = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, senha: password }),
+    });
 
-      });
+    const data = await res.json();
+    console.log("[LOGIN] resposta da API:", data); // 👈 DEBUG IMPORTANTE
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        setErrorMsg(data.error || "Erro ao fazer login");
-        setLoading(false);
-        return;
-      }
-
-      // guarda token no navegador
-      localStorage.setItem("catalogo_token", data.token);
-
-      // manda a pessoa pro dashboard
-      router.push("/dashboard");
-    } catch (err) {
-      console.error(err);
-      setErrorMsg("Não foi possível conectar ao servidor.");
-    } finally {
+    if (!res.ok) {
+      setErrorMsg(data.error || "Erro ao fazer login");
       setLoading(false);
+      return;
     }
+
+    // ⚠️ VER AQUI: qual é o nome real da propriedade do token?
+    const token = data.token || data.accessToken || data.jwt;
+
+    if (!token) {
+      setErrorMsg("Login retornou sem token. Checar /auth/login no backend.");
+      setLoading(false);
+      return;
+    }
+
+    localStorage.setItem("catalogo_token", token);
+
+    router.push("/dashboard");
+  } catch (err) {
+    console.error(err);
+    setErrorMsg("Não foi possível conectar ao servidor.");
+  } finally {
+    setLoading(false);
   }
+}
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg px-4">

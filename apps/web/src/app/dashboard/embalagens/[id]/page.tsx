@@ -25,10 +25,10 @@ type ParamsPromise = Promise<{ id: string }>;
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Embalagens", href: "/dashboard/embalagens", icon: Box },
-  { label: "Cenários", href: "/cenarios", icon: Layers },
-  { label: "Usuários", href: "/usuarios", icon: Users },
-  { label: "Locais", href: "/locais", icon: MapPin },
-  { label: "Scanner", href: "/scanner", icon: ScanLine },
+  { label: "Cenários", href: "/dashboard/cenarios", icon: Layers },
+  { label: "Usuários", href: "/dashboard/usuarios", icon: Users },
+  { label: "Locais", href: "/dashboard/locais", icon: MapPin },
+  { label: "Scanner", href: "/dashboard/scanner", icon: ScanLine },
 ];
 
 export default function Page({ params }: { params: ParamsPromise }) {

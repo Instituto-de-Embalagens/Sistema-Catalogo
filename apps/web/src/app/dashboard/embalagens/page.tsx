@@ -66,7 +66,7 @@ const API_BASE_URL =
 const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Embalagens", href: "/dashboard/embalagens", icon: Box },
-  { label: "Cenários", href: "/cenarios", icon: Layers },
+  { label: "Cenários", href: "/dashboard/cenarios", icon: Layers },
   { label: "Usuários", href: "/usuarios", icon: Users },
   { label: "Locais", href: "/locais", icon: MapPin },
   { label: "Scanner", href: "/scanner", icon: ScanLine },

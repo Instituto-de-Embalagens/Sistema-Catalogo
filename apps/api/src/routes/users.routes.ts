@@ -1,11 +1,22 @@
 // src/routes/users.routes.ts
 import { Router } from "express";
-import { getMe } from "../controllers/users.controller";
 import { authRequired } from "../auth/authMiddleware";
+import {
+  getCurrentUser,
+  createUser,
+  listUsers,
+  getUserById,
+  updateUser,
+  softDeleteUser,
+} from "../controllers/users.controller";
 
 const router = Router();
 
-// GET /users/me  -> retorna o usuário autenticado
-router.get("/me", authRequired, getMe);
+router.get("/me", authRequired, getCurrentUser);
+router.post("/", authRequired, createUser);
+router.get("/", authRequired, listUsers);
+router.get("/:id", authRequired, getUserById);
+router.patch("/:id", authRequired, updateUser);
+router.delete("/:id", authRequired, softDeleteUser);
 
 export default router;

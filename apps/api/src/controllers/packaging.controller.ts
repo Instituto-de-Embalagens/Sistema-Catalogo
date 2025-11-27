@@ -4,6 +4,7 @@ import { supabase } from "../services/supabase";
 import { AuthenticatedRequest } from "../auth/authMiddleware";
 import { appendPackagingToSheet } from "../lib/googleSheets";
 import { uploadFileToDrive } from "../lib/googleDrive";
+import { registerLog } from "../lib/logs";
 
 // GET /packaging
 // filtros opcionais: ?status=ativo&material=Papel&pais=Brasil&q=texto&tag=algumaTag&page=1&pageSize=20
@@ -62,7 +63,9 @@ export async function listPackaging(req: AuthenticatedRequest, res: Response) {
     });
   } catch (err) {
     console.error("Erro inesperado em listPackaging:", err);
-    return res.status(500).json({ error: "Erro interno ao listar embalagens" });
+    return res
+      .status(500)
+      .json({ error: "Erro interno ao listar embalagens" });
   }
 }
 
@@ -92,17 +95,20 @@ export async function getPackagingById(
     return res.json({ embalagem: data });
   } catch (err) {
     console.error("Erro inesperado em getPackagingById:", err);
-    return res.status(500).json({ error: "Erro interno ao buscar embalagem" });
+    return res
+      .status(500)
+      .json({ error: "Erro interno ao buscar embalagem" });
   }
 }
 
+// POST /packaging
 export async function createPackaging(
   req: AuthenticatedRequest,
   res: Response
 ) {
   try {
-    const userId = req.user?.sub;      // uuid pro banco
-    const userEmail = req.user?.email; // email só pra planilha
+    const userId = req.user?.sub; // uuid pro banco
+    const userEmail = req.user?.email; // email pra planilha
 
     const {
       codigo,
@@ -153,30 +159,42 @@ export async function createPackaging(
           livros: livros || null,
           observacoes: observacoes || null,
           status: status || "ativo",
-          criado_por: userId || null, // <- UUID pro banco
+          criado_por: userId || null,
           data_criacao: nowIso,
         },
       ])
       .select()
       .single();
 
-    if (error) {
+    if (error || !data) {
       console.error("Erro ao criar embalagem:", error);
       return res.status(500).json({ error: "Erro ao criar embalagem" });
     }
 
     console.log("[CREATE PACKAGING] Criado no Supabase:", data);
 
-    // 👉 AGORA: manda pra planilha, com email em criado_por
+    // log no sistema
+    try {
+      await registerLog({
+        req,
+        acao: "Criou embalagem",
+        detalhes: `Código: ${data.codigo} | Nome: ${data.nome}`,
+      });
+    } catch (logErr) {
+      console.error("[createPackaging] erro ao registrar log:", logErr);
+    }
+
+    // registra na planilha (best effort)
     try {
       await appendPackagingToSheet({
         ...data,
         criado_por: userEmail || null,
       });
-      console.log("[CREATE PACKAGING] Linha adicionada na planilha com sucesso");
+      console.log(
+        "[CREATE PACKAGING] Linha adicionada na planilha com sucesso"
+      );
     } catch (sheetErr) {
       console.error("Erro ao registrar embalagem na planilha:", sheetErr);
-      // aqui a gente NÃO dá erro pro front, só loga
     }
 
     return res.status(201).json({ embalagem: data });
@@ -192,7 +210,7 @@ export async function updatePackaging(
   res: Response
 ) {
   try {
-    const userId = req.user?.sub; // 👈 uuid
+    const userId = req.user?.sub;
     const { id } = req.params;
 
     const {
@@ -214,7 +232,7 @@ export async function updatePackaging(
     } = req.body;
 
     const updatePayload: Record<string, any> = {
-      modificado_por: userId || null, // 👈 continua uuid
+      modificado_por: userId || null,
       data_modificacao: new Date().toISOString(),
     };
 
@@ -256,10 +274,23 @@ export async function updatePackaging(
       return res.status(404).json({ error: "Embalagem não encontrada" });
     }
 
+    // log de edição
+    try {
+      await registerLog({
+        req,
+        acao: "Atualizou embalagem",
+        detalhes: `ID: ${id} | Código: ${data.codigo} | Nome: ${data.nome}`,
+      });
+    } catch (logErr) {
+      console.error("[updatePackaging] erro ao registrar log:", logErr);
+    }
+
     return res.json({ embalagem: data });
   } catch (err) {
     console.error("Erro inesperado em updatePackaging:", err);
-    return res.status(500).json({ error: "Erro interno ao atualizar embalagem" });
+    return res
+      .status(500)
+      .json({ error: "Erro interno ao atualizar embalagem" });
   }
 }
 
@@ -269,14 +300,14 @@ export async function softDeletePackaging(
   res: Response
 ) {
   try {
-    const userId = req.user?.sub; // 👈 uuid
+    const userId = req.user?.sub;
     const { id } = req.params;
 
     const { data, error } = await supabase
       .from("embalagens")
       .update({
         status: "arquivado",
-        modificado_por: userId || null, // 👈 uuid aqui também
+        modificado_por: userId || null,
         data_modificacao: new Date().toISOString(),
       })
       .eq("id", id)
@@ -292,10 +323,23 @@ export async function softDeletePackaging(
       return res.status(404).json({ error: "Embalagem não encontrada" });
     }
 
+    // log de arquivamento
+    try {
+      await registerLog({
+        req,
+        acao: "Arquivou embalagem",
+        detalhes: `ID: ${id} | Código: ${data.codigo} | Nome: ${data.nome}`,
+      });
+    } catch (logErr) {
+      console.error("[softDeletePackaging] erro ao registrar log:", logErr);
+    }
+
     return res.json({ embalagem: data });
   } catch (err) {
     console.error("Erro inesperado em softDeletePackaging:", err);
-    return res.status(500).json({ error: "Erro interno ao arquivar embalagem" });
+    return res
+      .status(500)
+      .json({ error: "Erro interno ao arquivar embalagem" });
   }
 }
 
@@ -324,6 +368,17 @@ export async function uploadPackagingFile(
       mimeType: file.mimetype,
       originalName: file.originalname,
     });
+
+    // log de upload
+    try {
+      await registerLog({
+        req,
+        acao: "Upload de arquivo de embalagem",
+        detalhes: `Arquivo: ${file.originalname}`,
+      });
+    } catch (logErr) {
+      console.error("[uploadPackagingFile] erro ao registrar log:", logErr);
+    }
 
     return res.json({ url: publicUrl });
   } catch (err) {

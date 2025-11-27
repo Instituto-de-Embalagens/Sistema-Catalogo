@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { supabase } from "../services/supabase";
+import { registerLog } from "../lib/logs";
 
 export async function register(req: Request, res: Response) {
   try {
@@ -11,7 +12,7 @@ export async function register(req: Request, res: Response) {
       return res.status(400).json({ error: "Campos obrigatórios faltando" });
     }
 
-    // verifica se o usuário já existe
+    // verifica se ja existe
     const { data: existingUser, error: lookupError } = await supabase
       .from("usuarios")
       .select("id")
@@ -24,7 +25,7 @@ export async function register(req: Request, res: Response) {
       return res.status(409).json({ error: "Email já cadastrado" });
     }
 
-    const passwordHash = await bcrypt.hash(senha, 10);
+    const senha_hash = await bcrypt.hash(senha, 10);
 
     const { data: createdUser, error: insertError } = await supabase
       .from("usuarios")
@@ -32,8 +33,9 @@ export async function register(req: Request, res: Response) {
         {
           email,
           nome,
-          password_hash: passwordHash,
+          senha_hash,
           status: "ativo",
+          nivel_acesso: "admin",
         },
       ])
       .select()
@@ -41,18 +43,28 @@ export async function register(req: Request, res: Response) {
 
     if (insertError) throw insertError;
 
-    // cria JWT
+    // registra log
+    try {
+      await registerLog({
+        req,
+        acao: "Criou usuário",
+        detalhes: `Email: ${createdUser.email}`,
+      });
+    } catch (err) {
+      console.error("[register] falha ao registrar log:", err);
+    }
+
     const token = jwt.sign(
       {
         sub: createdUser.id,
         email: createdUser.email,
-        role: createdUser.nivel_acesso || "user",
+        role: createdUser.nivel_acesso,
       },
       process.env.JWT_SECRET!,
       { expiresIn: "1h" }
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       user: {
         id: createdUser.id,
         email: createdUser.email,
@@ -86,7 +98,7 @@ export async function login(req: Request, res: Response) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    const senhaCorreta = await bcrypt.compare(senha, user.password_hash || "");
+    const senhaCorreta = await bcrypt.compare(senha, user.senha_hash || "");
 
     if (!senhaCorreta) {
       return res.status(401).json({ error: "Credenciais inválidas" });
@@ -96,13 +108,24 @@ export async function login(req: Request, res: Response) {
       {
         sub: user.id,
         email: user.email,
-        role: user.nivel_acesso || "user",
+        role: user.nivel_acesso,
       },
       process.env.JWT_SECRET!,
       { expiresIn: "1h" }
     );
 
-    res.json({
+    // registra log
+    try {
+      await registerLog({
+        req,
+        acao: "Login",
+        detalhes: `Email: ${user.email}`,
+      });
+    } catch (err) {
+      console.error("[login] falha log:", err);
+    }
+
+    return res.json({
       user: {
         id: user.id,
         email: user.email,

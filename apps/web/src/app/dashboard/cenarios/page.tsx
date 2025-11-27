@@ -14,7 +14,6 @@ import {
   Moon,
   Sun,
   LogOut,
-  Package,
   Search,
   Filter,
   PlusCircle,
@@ -23,13 +22,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -47,17 +39,18 @@ type User = {
   nivel_acesso?: string;
 };
 
-type Packaging = {
+type Scenario = {
   id: string;
   codigo: string;
   nome: string;
-  marca?: string | null;
-  material?: string | null;
+  descricao?: string | null;
   pais?: string | null;
+  local?: string | null;
+  data?: string | null; 
   url_imagem?: string | null;
-  status: string;
-  grafica?: string | null; // transformador
-  tags?: string[] | null; // categorias
+  tags?: string[] | null;
+  criado_por?: string | null;
+  data_criacao?: string | null;
 };
 
 const API_BASE_URL =
@@ -72,32 +65,7 @@ const NAV_ITEMS = [
   { label: "Scanner", href: "/dashboard/scanner", icon: ScanLine },
 ];
 
-const CATEGORIAS = [
-  "Alimentos",
-  "Bebidas",
-  "Brinquedo",
-  "Higiene Pessoal/Cosmético",
-  "Limpeza",
-  "Farmácia",
-  "Pet food",
-  "Outros",
-];
-
-const MATERIAIS = [
-  "Aço",
-  "Alumínio",
-  "Madeira",
-  "Papelão Ondulado",
-  "Papel",
-  "Papelcartão",
-  "Embalagens Flexíveis",
-  "Plástico Rígido",
-  "Vidro/Cerâmica",
-  "Cartonada",
-  "Sacolas",
-];
-
-export default function EmbalagensPage() {
+export default function CenariosPage() {
   const router = useRouter();
   const pathname = usePathname();
 
@@ -107,32 +75,29 @@ export default function EmbalagensPage() {
   const [isDark, setIsDark] = useState(true);
 
   const [loadingList, setLoadingList] = useState(true);
-  const [packaging, setPackaging] = useState<Packaging[]>([]);
-  const [search, setSearch] = useState("");
-  const [filterStatus, setFilterStatus] = useState("todos");
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
 
-  // estado do modal de criação
+  // filtro simples
+  const [search, setSearch] = useState("");
+
+  // modal criação
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  // campos do formulário de criação
+  // campos de criação (tabela scenarios)
   const [codigo, setCodigo] = useState("");
   const [nome, setNome] = useState("");
-  const [marca, setMarca] = useState("");
-  const [material, setMaterial] = useState("");
+  const [descricao, setDescricao] = useState("");
   const [pais, setPais] = useState("");
-  const [transformador, setTransformador] = useState("");
-  const [categoria, setCategoria] = useState("");
-  const [linkDrive, setLinkDrive] = useState("");
-  const [status, setStatus] = useState("ativo");
-  const [file, setFile] = useState<File | null>(null);
+  const [local, setLocal] = useState("");
+  const [dataFoto, setDataFoto] = useState("");
+  const [linkImagem, setLinkImagem] = useState("");
 
   // ======================
   // AUTH / USER / THEME
   // ======================
 
-  // token
   useEffect(() => {
     if (typeof window === "undefined") return;
     const storedToken = localStorage.getItem("catalogo_token");
@@ -143,7 +108,6 @@ export default function EmbalagensPage() {
     setToken(storedToken);
   }, [router]);
 
-  // user
   useEffect(() => {
     if (!token) return;
 
@@ -171,7 +135,6 @@ export default function EmbalagensPage() {
     fetchUser();
   }, [token, router]);
 
-  // dark mode inicial
   useEffect(() => {
     if (typeof document === "undefined") return;
     document.documentElement.classList.add("dark");
@@ -201,7 +164,7 @@ export default function EmbalagensPage() {
     (user?.nome && user.nome.trim()) || user?.email || "Usuário";
 
   // ======================
-  // LISTAGEM DE EMBALAGENS
+  // LISTAGEM DE CENÁRIOS (tabela scenarios)
   // ======================
 
   useEffect(() => {
@@ -213,10 +176,9 @@ export default function EmbalagensPage() {
 
         const params = new URLSearchParams();
         if (search.trim()) params.set("q", search.trim());
-        if (filterStatus !== "todos") params.set("status", filterStatus);
 
         const res = await fetch(
-          `${API_BASE_URL}/packaging?${params.toString()}`,
+          `${API_BASE_URL}/scenarios?${params.toString()}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -225,33 +187,30 @@ export default function EmbalagensPage() {
         );
 
         const data = await res.json();
-        setPackaging(data.items || []);
+        setScenarios(data.items || data || []);
       } catch (err) {
-        console.error("Erro ao listar embalagens:", err);
+        console.error("Erro ao listar cenários:", err);
       } finally {
         setLoadingList(false);
       }
     }
 
     fetchData();
-  }, [token, search, filterStatus]);
+  }, [token, search]);
 
   // ======================
-  // CRIAÇÃO / UPLOAD
+  // CRIAÇÃO DE CENÁRIO
   // ======================
 
   function openCreateModal() {
     setCreateError(null);
     setCodigo("");
     setNome("");
-    setMarca("");
-    setMaterial("");
+    setDescricao("");
     setPais("");
-    setTransformador("");
-    setCategoria("");
-    setLinkDrive("");
-    setStatus("ativo");
-    setFile(null);
+    setLocal("");
+    setDataFoto("");
+    setLinkImagem("");
     setIsCreateOpen(true);
   }
 
@@ -259,83 +218,47 @@ export default function EmbalagensPage() {
     e.preventDefault();
     if (!token) return;
 
+    if (!nome.trim()) {
+      setCreateError("Informe o nome do cenário.");
+      return;
+    }
+
     setCreating(true);
     setCreateError(null);
 
     try {
-      let finalUrl: string | null = linkDrive || null;
+      const body = {
+        // se código vier vazio, backend pode gerar um default
+        codigo: codigo.trim() || undefined,
+        nome: nome.trim(),
+        descricao: descricao.trim() || null,
+        pais: pais.trim() || null,
+        local: local.trim() || null,
+        data: dataFoto || null, // campo "data" no schema
+        url_imagem: linkImagem.trim() || null,
+      };
 
-      // Se tiver arquivo selecionado, faz upload primeiro
-      if (file) {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const uploadRes = await fetch(
-          `${API_BASE_URL}/packaging/upload`,
-          {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              // NÃO setar Content-Type aqui, o browser cuida disso no multipart
-            },
-            body: formData,
-          }
-        );
-
-        const uploadData = await uploadRes.json();
-
-        if (!uploadRes.ok) {
-          setCreateError(
-            uploadData.error ||
-              "Erro ao enviar arquivo para o Drive. Tente novamente."
-          );
-          setCreating(false);
-          return;
-        }
-
-        finalUrl = uploadData.url || null;
-      }
-
-      const res = await fetch(`${API_BASE_URL}/packaging`, {
+      const res = await fetch(`${API_BASE_URL}/scenarios`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          codigo,
-          nome,
-          marca: marca || null,
-          material: material || null,
-          pais: pais || null,
-          grafica: transformador || null,
-          url_imagem: finalUrl,
-          status,
-          // backend aceita array de tags ou string que ele split,
-          // aqui já mandamos como array bonitinho
-          tags: categoria ? [categoria] : [],
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        setCreateError(data.error || "Erro ao criar embalagem");
+        setCreateError(data.error || "Erro ao criar cenário.");
         setCreating(false);
         return;
       }
 
-      const created = data.embalagem || data;
-
       setIsCreateOpen(false);
-
-      if (created?.id) {
-        router.push(`/dashboard/embalagens/${created.id}`);
-      } else {
-        router.refresh();
-      }
+      router.refresh();
     } catch (err) {
-      console.error("Erro ao criar embalagem:", err);
+      console.error("Erro ao criar cenário:", err);
       setCreateError("Erro de conexão com o servidor.");
     } finally {
       setCreating(false);
@@ -406,19 +329,13 @@ export default function EmbalagensPage() {
         {/* HEADER */}
         <header className="h-16 border-b flex items-center justify-between px-4 md:px-6 bg-background/95 backdrop-blur">
           <div>
-            <h1 className="text-xl md:text-2xl font-semibold flex items-center gap-2">
-              <Package className="w-5 h-5 text-emerald-400" />
-              Embalagens
-            </h1>
-            <p className="text-xs text-muted-foreground">
-              {loadingUser
-                ? "Carregando usuário..."
-                : "Consulta, organização e curadoria do acervo físico."}
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">
+              Módulo de cenários
             </p>
+            <h2 className="text-lg font-semibold">Cenários de embalagens</h2>
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Toggle dark mode */}
             <Button
               variant="outline"
               size="icon"
@@ -432,7 +349,6 @@ export default function EmbalagensPage() {
               )}
             </Button>
 
-            {/* Usuário logado */}
             <div className="hidden md:flex flex-col items-end">
               <span className="text-xs text-muted-foreground">
                 Logado como
@@ -442,7 +358,6 @@ export default function EmbalagensPage() {
               </span>
             </div>
 
-            {/* Botão sair */}
             <Button
               variant="destructive"
               size="sm"
@@ -457,18 +372,13 @@ export default function EmbalagensPage() {
 
         {/* CONTEÚDO PRINCIPAL */}
         <main className="flex-1 p-4 md:p-6 bg-muted/30">
-          <div className="space-y-6 max-w-5xl mx-auto">
+          <div className="space-y-6 w-full">
             {/* TÍTULO + BOTÃO */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
-                <p className="text-xs text-muted-foreground uppercase tracking-wide">
-                  Módulo de acervo
-                </p>
-                <h2 className="text-lg font-semibold">
-                  Lista de embalagens cadastradas
-                </h2>
                 <p className="text-xs text-muted-foreground">
-                  Pesquise pelo código, marca, material ou país.
+                  Cada registro representa uma foto/cenário. As
+                  embalagens serão vinculadas depois na tela de detalhes.
                 </p>
               </div>
 
@@ -477,11 +387,11 @@ export default function EmbalagensPage() {
                 className="bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-2"
               >
                 <PlusCircle className="w-4 h-4" />
-                Nova embalagem
+                Novo cenário
               </Button>
             </div>
 
-            {/* FILTROS */}
+            {/* FILTRO SIMPLES */}
             <Card className="border-emerald-500/20 bg-background/90">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2">
@@ -489,33 +399,15 @@ export default function EmbalagensPage() {
                   Filtros
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {/* BUSCA */}
+              <CardContent className="grid grid-cols-1 gap-3">
                 <div className="flex items-center gap-2">
                   <Search className="w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder="Buscar por nome, marca ou código..."
+                    placeholder="Buscar por código, nome, país, local..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                   />
                 </div>
-
-                {/* STATUS */}
-                <Select value={filterStatus} onValueChange={setFilterStatus}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Status da embalagem" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="todos">Todos</SelectItem>
-                    <SelectItem value="ativo">Ativos</SelectItem>
-                    <SelectItem value="arquivado">Arquivados</SelectItem>
-                    <SelectItem value="rascunho">Rascunhos</SelectItem>
-                  </SelectContent>
-                </Select>
-
-                <Button disabled variant="outline">
-                  Filtros avançados (em breve)
-                </Button>
               </CardContent>
             </Card>
 
@@ -523,17 +415,17 @@ export default function EmbalagensPage() {
             <Card className="border-emerald-500/10 bg-background/90">
               <CardHeader>
                 <CardTitle className="text-base">
-                  Resultados ({packaging.length})
+                  Cenários cadastrados ({scenarios.length})
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 {loadingList ? (
                   <p className="text-sm text-muted-foreground">
-                    Carregando embalagens...
+                    Carregando cenários...
                   </p>
-                ) : packaging.length === 0 ? (
+                ) : scenarios.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    Nenhuma embalagem encontrada.
+                    Nenhum cenário encontrado.
                   </p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -542,63 +434,52 @@ export default function EmbalagensPage() {
                         <tr className="border-b text-xs uppercase text-muted-foreground">
                           <th className="px-2 py-2 text-left">Código</th>
                           <th className="px-2 py-2 text-left">Nome</th>
-                          <th className="px-2 py-2 text-left">Marca</th>
-                          <th className="px-2 py-2 text-left">Material</th>
                           <th className="px-2 py-2 text-left">País</th>
-                          <th className="px-2 py-2 text-left">Categoria</th>
-                          <th className="px-2 py-2 text-left">Transformador</th>
-                          <th className="px-2 py-2 text-left">Status</th>
+                          <th className="px-2 py-2 text-left">Local</th>
+                          <th className="px-2 py-2 text-left">Data</th>
+                          <th className="px-2 py-2 text-left">Criado em</th>
                           <th className="px-2 py-2 text-left">Detalhes</th>
-                          <th className="px-2 py-2 text-left">Arquivo</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {packaging.map((item) => (
+                        {scenarios.map((item) => (
                           <tr
                             key={item.id}
                             className="border-b hover:bg-muted/60 transition-colors"
                           >
-                            <td className="px-2 py-1">{item.codigo}</td>
-                            <td className="px-2 py-1 max-w-[180px] truncate">
+                            <td className="px-2 py-1">
+                              {item.codigo || "—"}
+                            </td>
+                            <td className="px-2 py-1 max-w-[260px] truncate">
                               {item.nome}
                             </td>
-                            <td className="px-2 py-1">{item.marca || "-"}</td>
-                            <td className="px-2 py-1">{item.material || "-"}</td>
-                            <td className="px-2 py-1">{item.pais || "-"}</td>
                             <td className="px-2 py-1">
-                              {item.tags && item.tags.length > 0
-                                ? item.tags.join(", ")
-                                : "-"}
+                              {item.pais || "—"}
                             </td>
-                            <td className="px-2 py-1">{item.grafica || "-"}</td>
                             <td className="px-2 py-1">
-                              <span className="inline-flex rounded-full px-2 py-0.5 text-[11px] border">
-                                {item.status}
-                              </span>
+                              {item.local || "—"}
+                            </td>
+                            <td className="px-2 py-1">
+                              {item.data
+                                ? new Date(item.data).toLocaleDateString(
+                                    "pt-BR"
+                                  )
+                                : "—"}
+                            </td>
+                            <td className="px-2 py-1">
+                              {item.data_criacao
+                                ? new Date(
+                                    item.data_criacao
+                                  ).toLocaleDateString("pt-BR")
+                                : "—"}
                             </td>
                             <td className="px-2 py-1">
                               <Link
-                                href={`/dashboard/embalagens/${item.id}`}
+                                href={`/dashboard/cenarios/${item.id}`}
                                 className="text-emerald-500 text-xs hover:underline"
                               >
                                 Ver
                               </Link>
-                            </td>
-                            <td className="px-2 py-1">
-                              {item.url_imagem ? (
-                                <a
-                                  href={item.url_imagem}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-xs text-emerald-500 hover:underline"
-                                >
-                                  Abrir
-                                </a>
-                              ) : (
-                                <span className="text-xs text-muted-foreground">
-                                  —
-                                </span>
-                              )}
                             </td>
                           </tr>
                         ))}
@@ -616,64 +497,44 @@ export default function EmbalagensPage() {
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Nova embalagem</DialogTitle>
+            <DialogTitle>Novo cenário</DialogTitle>
             <DialogDescription>
-              Preencha os dados principais. Você poderá complementar depois na
-              tela de detalhes.
+              Cadastre uma nova foto/cenário. As embalagens podem
+              ser vinculadas depois na tela de detalhes.
             </DialogDescription>
           </DialogHeader>
 
           <form className="space-y-4" onSubmit={handleCreateSubmit}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1 md:col-span-2">
+                <Label htmlFor="nome">Nome do cenário</Label>
+                <Input
+                  id="nome"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  required
+                  placeholder="Cenário para Nordeste - EMA3"
+                />
+              </div>
+
               <div className="space-y-1">
                 <Label htmlFor="codigo">Código</Label>
                 <Input
                   id="codigo"
                   value={codigo}
                   onChange={(e) => setCodigo(e.target.value)}
-                  required
-                  placeholder="EAN / interno"
+                  placeholder="Ex: SCN-0001 (opcional)"
                 />
               </div>
 
               <div className="space-y-1">
-                <Label htmlFor="nome">Nome</Label>
+                <Label htmlFor="dataFoto">Data da foto</Label>
                 <Input
-                  id="nome"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  required
-                  placeholder="Nome da embalagem"
+                  id="dataFoto"
+                  type="date"
+                  value={dataFoto}
+                  onChange={(e) => setDataFoto(e.target.value)}
                 />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="marca">Marca</Label>
-                <Input
-                  id="marca"
-                  value={marca}
-                  onChange={(e) => setMarca(e.target.value)}
-                  placeholder="Ex: Marca X"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label>Material</Label>
-                <Select
-                  value={material}
-                  onValueChange={(value) => setMaterial(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o material" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MATERIAIS.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {m}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
 
               <div className="space-y-1">
@@ -687,81 +548,36 @@ export default function EmbalagensPage() {
               </div>
 
               <div className="space-y-1">
-                <Label>Categoria</Label>
-                <Select
-                  value={categoria}
-                  onValueChange={(value) => setCategoria(value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione a categoria" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CATEGORIAS.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="local">Local</Label>
+                <Input
+                  id="local"
+                  value={local}
+                  onChange={(e) => setLocal(e.target.value)}
+                  placeholder="Fotografia interna - estúdio"
+                />
               </div>
 
               <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="transformador">Transformador</Label>
+                <Label htmlFor="linkImagem">Link da imagem</Label>
                 <Input
-                  id="transformador"
-                  value={transformador}
-                  onChange={(e) => setTransformador(e.target.value)}
-                  placeholder="Quem transformou / produziu"
+                  id="linkImagem"
+                  value={linkImagem}
+                  onChange={(e) => setLinkImagem(e.target.value)}
+                  placeholder="https://drive.google.com/..."
                 />
               </div>
-            </div>
 
-            {/* UPLOAD DE ARQUIVO PARA O DRIVE */}
-            <div className="space-y-2">
-              <Label htmlFor="file">Arquivo da embalagem (upload para Drive)</Label>
-              <Input
-                id="file"
-                type="file"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  setFile(f || null);
-                }}
-              />
-              <p className="text-xs text-muted-foreground">
-                Se você selecionar um arquivo aqui, ele será enviado para a pasta do Google Drive configurada
-                e o link será salvo automaticamente.
-              </p>
-            </div>
-
-            {/* LINK DO DRIVE MANUAL (OPCIONAL) */}
-            <div className="space-y-2">
-              <Label htmlFor="linkDrive">
-                Link do arquivo no Drive (opcional)
-              </Label>
-              <Input
-                id="linkDrive"
-                value={linkDrive}
-                onChange={(e) => setLinkDrive(e.target.value)}
-                placeholder="https://drive.google.com/..."
-              />
-              <p className="text-xs text-muted-foreground">
-                Caso não envie arquivo, você pode colar manualmente o link da embalagem
-                no Google Drive.
-              </p>
-            </div>
-
-            <div className="space-y-1">
-              <Label>Status</Label>
-              <Select value={status} onValueChange={setStatus}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ativo">Ativo</SelectItem>
-                  <SelectItem value="arquivado">Arquivado</SelectItem>
-                  <SelectItem value="rascunho">Rascunho</SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="space-y-1 md:col-span-2">
+                <Label htmlFor="descricao">Descrição</Label>
+                <textarea
+                  id="descricao"
+                  value={descricao}
+                  onChange={(e) => setDescricao(e.target.value)}
+                  placeholder="Notas adicionais sobre o cenário..."
+                  rows={3}
+                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
             </div>
 
             {createError && (
@@ -782,7 +598,7 @@ export default function EmbalagensPage() {
                 className="bg-emerald-600 hover:bg-emerald-500 text-white"
                 disabled={creating}
               >
-                {creating ? "Criando..." : "Criar e ir para detalhes"}
+                {creating ? "Criando..." : "Criar cenário"}
               </Button>
             </DialogFooter>
           </form>

@@ -34,11 +34,6 @@ router.post("/", authRequired, createPackaging);
 router.patch("/:id", authRequired, updatePackaging);
 router.delete("/:id", authRequired, softDeletePackaging);
 
-/**
- * Upload de arquivo para o Drive
- * Front usa:
- *   FormData + campo "file"
- */
 router.post(
   "/upload",
   authRequired,

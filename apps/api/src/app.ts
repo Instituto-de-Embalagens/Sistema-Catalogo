@@ -8,6 +8,10 @@ import debugRoutes from "./routes/debug.routes";
 import packagingRoutes from "./routes/packaging.routes";
 import { filesRoutes } from "./routes/files.routes";
 
+// cenários (tabela scenarios)
+import scenarioRoutes from "./routes/scenario.routes";
+// pivot cenário–embalagem (tabela scenario_packaging)
+import scenarioPackagingRoutes from "./routes/scenarioPackaging.routes";
 
 const app = express();
 
@@ -19,5 +23,11 @@ app.use("/users", usersRoutes);
 app.use("/debug", debugRoutes);
 app.use("/packaging", packagingRoutes);
 app.use("/files", filesRoutes);
+
+// CENÁRIOS (CRUD de scenarios)
+app.use("/scenarios", scenarioRoutes);
+
+// RELAÇÃO CENÁRIO–EMBALAGEM (scenario_packaging)
+app.use("/scenarios", scenarioPackagingRoutes);
 
 export default app;
