@@ -99,3 +99,10 @@ docker-data/
 coverage/
 test-output/
 jest-cache/
+
+
+# exceções importantes
+!package.json
+!pnpm-lock.yaml
+!tsconfig.json
+!apps/api/railway.json
