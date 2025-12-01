@@ -1,28 +1,33 @@
 // src/lib/googleAuth.ts
-import { google, Auth } from "googleapis";
-import path from "path";
+import { google } from "googleapis";
 
-let googleAuth: Auth.GoogleAuth | null = null;
+let googleAuth: any = null;
 
 export function getGoogleAuth() {
   if (googleAuth) return googleAuth;
 
-  // Caminho ABSOLUTO pro JSON da service account
-  const keyFilePath = path.resolve(
-    "/Users/institutodeembalagens/Desktop/Sistema-Catalogo/apps/api/src/credentials/catalogo-embalagens-prod.json"
-  );
+  const clientEmail = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;
+  const privateKey = process.env.GOOGLE_PRIVATE_KEY;
+
+  if (!clientEmail || !privateKey) {
+    throw new Error(
+      "GOOGLE_SERVICE_ACCOUNT_EMAIL ou GOOGLE_PRIVATE_KEY não definidos no .env"
+    );
+  }
 
   console.log("==================================================");
-  console.log("[GOOGLE AUTH] Inicializando GoogleAuth");
-  console.log("[GOOGLE AUTH] keyFilePath:", keyFilePath);
+  console.log("[GOOGLE AUTH] Inicializando GoogleAuth via ENV");
+  console.log("[GOOGLE AUTH] clientEmail:", clientEmail);
   console.log(
-    "[GOOGLE AUTH] GOOGLE_APPLICATION_CREDENTIALS:",
-    process.env.GOOGLE_APPLICATION_CREDENTIALS || "(não setada)"
+    "[GOOGLE AUTH] PRIVATE_KEY length:",
+    privateKey.length
   );
   console.log("==================================================");
 
-  googleAuth = new google.auth.GoogleAuth({
-    keyFile: keyFilePath,
+  googleAuth = new google.auth.JWT({
+    email: clientEmail,
+    // se no .env tiver \n literais, isso converte pra quebras de linha reais
+    key: privateKey.replace(/\\n/g, "\n"),
     scopes: [
       "https://www.googleapis.com/auth/drive.file",
       "https://www.googleapis.com/auth/spreadsheets",
