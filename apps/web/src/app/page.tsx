@@ -147,7 +147,6 @@ export default function Index() {
               <div className="absolute inset-0 bg-gradient-to-l from-black/40 via-black/40 to-black/70" />
             </div>
 
-            {/* “slider” fake da referência */}
             <div className="pointer-events-none absolute right-6 top-1/2 flex -translate-y-1/2 flex-col items-center gap-3 text-white/70">
               <span className="h-8 w-px bg-white/25" />
               <div className="flex flex-col gap-2">
