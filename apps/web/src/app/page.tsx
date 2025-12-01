@@ -3,10 +3,26 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-const HERO_IMAGE_URL =
-  "https://images.unsplash.com/photo-1533636723495-4f5010c4c33c?auto=format&fit=crop&w=1600&q=80";
+// se seu arquivo estiver em apps/web/src/app/page.tsx,
+// esse caminho relativo funciona:
+import img1 from "../../public/images/img1.jpeg";
+import img2 from "../../public/images/img2.jpeg";
+import img3 from "../../public/images/img3.jpeg";
+import img4 from "../../public/images/img4.jpeg";
+
+// garante que essa página seja renderizada a cada request (e não 100% estática)
+export const dynamic = "force-dynamic";
+
+const HERO_IMAGES = [img1, img2, img3, img4];
+
+function getRandomHeroImage() {
+  const index = Math.floor(Math.random() * HERO_IMAGES.length);
+  return HERO_IMAGES[index];
+}
 
 export default function Index() {
+  const heroImage = getRandomHeroImage();
+
   return (
     <div className="relative min-h-screen bg-[#020704] text-white">
       {/* Glow de fundo */}
@@ -137,13 +153,12 @@ export default function Index() {
           <div className="relative h-[320px] w-full bg-black/40 lg:h-auto">
             <div className="absolute inset-0 overflow-hidden">
               <Image
-                src={HERO_IMAGE_URL}
-                alt="Folhagens verdes em close"
+                src={heroImage}
+                alt="Visual do acervo do Instituto de Embalagens"
                 fill
                 priority
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover brightness-[0.85] saturate-150"
-                unoptimized
               />
               {/* overlay em gradiente pra mesclar com o lado esquerdo */}
               <div className="absolute inset-0 bg-gradient-to-l from-black/40 via-black/40 to-black/70" />
