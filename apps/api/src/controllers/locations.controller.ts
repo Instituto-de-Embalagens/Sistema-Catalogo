@@ -3,7 +3,7 @@ import { Response } from "express";
 import { supabase } from "../services/supabase";
 import { AuthenticatedRequest } from "../auth/authMiddleware";
 import { registerLog } from "../lib/logs";
-import { appendLocationToSheet } from "../lib/googleSheets"; // você cria esse helper espelhando o de embalagens
+import { appendLocationViaWebhook } from "../lib/sheetsWebhook"; // <<< novo import
 
 // ==============================
 // GET /locations
@@ -104,8 +104,8 @@ export async function createLocation(
   res: Response
 ) {
   try {
-    const userId = req.user?.sub;    // UUID do usuário
-    const userEmail = req.user?.email;
+    const userId = req.user?.sub;    // UUID do usuário (Supabase)
+    const userEmail = req.user?.email; // e-mail pra planilha (opcional)
 
     const { code, building, description } = req.body as {
       code?: string;
@@ -128,8 +128,8 @@ export async function createLocation(
           code,
           building,
           description: description || null,
-          created_at: nowIso,          // poderia até omitir e deixar o default now()
-          created_by: userId || null,  // <<--- AQUI: UUID, não e-mail
+          created_at: nowIso,          // pode deixar, sobrepõe o default now()
+          created_by: userId || null,  // respeita o FK pra tabela usuarios
         },
       ])
       .select()
@@ -145,7 +145,7 @@ export async function createLocation(
       return res.status(500).json({ error: "Erro ao criar local" });
     }
 
-    // log
+    // log interno
     try {
       await registerLog({
         req,
@@ -156,19 +156,23 @@ export async function createLocation(
       console.error("[createLocation] erro ao registrar log:", logErr);
     }
 
-    // planilha: aqui você pode continuar salvando o e-mail
+    // registra na planilha via Apps Script (best effort)
     try {
-      await appendLocationToSheet({
-        Id: data.id,
-        Code: data.code,
-        Building: data.building,
-        Description: data.description,
-        CreatedAt: data.created_at,
-        CreatedBy: userEmail || null, 
+      await appendLocationViaWebhook({
+        id: data.id,
+        code: data.code,
+        building: data.building,
+        description: data.description,
+        created_at: data.created_at,
+        // aqui você salva o e-mail na coluna CreatedBy da planilha
+        created_by: userEmail || null,
       });
-      console.log("[CREATE LOCATION] Linha adicionada na planilha Locations");
+      console.log("[CREATE LOCATION] Local registrado na planilha via webhook");
     } catch (sheetErr) {
-      console.error("Erro ao registrar local na planilha Locations:", sheetErr);
+      console.error(
+        "Erro ao registrar local na planilha Locations via webhook:",
+        sheetErr
+      );
     }
 
     return res.status(201).json({ location: data });
@@ -195,7 +199,6 @@ export async function updateLocation(
     };
 
     const updatePayload: Record<string, any> = {
-      // se futuramente quiser, pode adicionar updated_at / updated_by
       updated_at: new Date().toISOString(),
       updated_by: userId || null,
     };
