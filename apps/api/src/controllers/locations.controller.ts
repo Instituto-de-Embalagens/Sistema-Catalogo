@@ -164,7 +164,7 @@ export async function createLocation(
         Building: data.building,
         Description: data.description,
         CreatedAt: data.created_at,
-        CreatedBy: userEmail || null, // <<--- planilha usa e-mail, tá ok
+        CreatedBy: userEmail || null, 
       });
       console.log("[CREATE LOCATION] Linha adicionada na planilha Locations");
     } catch (sheetErr) {
