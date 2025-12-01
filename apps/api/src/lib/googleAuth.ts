@@ -15,14 +15,24 @@ export function getGoogleAuth() {
     );
   }
 
-  const privateKey = rawPrivateKey.includes("\\n")
-    ? rawPrivateKey.replace(/\\n/g, "\n")
-    : rawPrivateKey;
+  let privateKey = rawPrivateKey;
+
+  // Se vier com \n literais (caso Railway), converte
+  if (privateKey.includes("\\n")) {
+    privateKey = privateKey.replace(/\\n/g, "\n");
+  }
+
+  // remove espaços em volta
+  privateKey = privateKey.trim();
+
+  // garante que termina com newline (alguns parsers gostam disso)
+  if (!privateKey.endsWith("\n")) {
+    privateKey = privateKey + "\n";
+  }
 
   console.log("==================================================");
   console.log("[GOOGLE AUTH] Inicializando GoogleAuth via ENV");
   console.log("[GOOGLE AUTH] clientEmail:", clientEmail);
-  console.log("[GOOGLE AUTH] rawPrivateKey starts with:", rawPrivateKey.slice(0, 20));
   console.log("[GOOGLE AUTH] privateKey starts with:", privateKey.slice(0, 30));
   console.log("[GOOGLE AUTH] privateKey ends with:", privateKey.slice(-30));
   console.log("==================================================");
