@@ -84,13 +84,17 @@ export async function register(req: Request, res: Response) {
 // =====================
 export async function login(req: Request, res: Response) {
   try {
+    console.log("[LOGIN] body recebido:", req.body);
+
     const { email } = req.body;
+    // aceita tanto "senha" quanto "password"
     const senha: string | undefined = req.body.senha ?? req.body.password;
 
     if (!email || !senha) {
+      console.warn("[LOGIN] email ou senha ausentes:", { email, senha });
       return res
         .status(400)
-        .json({ error: "Email e senha são obrigatórios (v2)" });
+        .json({ error: "Email e senha são obrigatórios (login v3)" });
     }
 
     const { data: user, error } = await supabase
@@ -105,6 +109,7 @@ export async function login(req: Request, res: Response) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
+    // compatibilidade com dados antigos: prioriza password_hash
     const hash: string | null = user.password_hash || user.senha_hash;
 
     if (!hash) {
