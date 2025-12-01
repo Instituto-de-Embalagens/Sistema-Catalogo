@@ -4,6 +4,9 @@ import jwt from "jsonwebtoken";
 import { supabase } from "../services/supabase";
 import { registerLog } from "../lib/logs";
 
+// =====================
+// REGISTRO
+// =====================
 export async function register(req: Request, res: Response) {
   try {
     const { email, nome, senha } = req.body;
@@ -12,7 +15,6 @@ export async function register(req: Request, res: Response) {
       return res.status(400).json({ error: "Campos obrigatórios faltando" });
     }
 
-    // verifica se ja existe
     const { data: existingUser, error: lookupError } = await supabase
       .from("usuarios")
       .select("id")
@@ -25,7 +27,7 @@ export async function register(req: Request, res: Response) {
       return res.status(409).json({ error: "Email já cadastrado" });
     }
 
-    const senha_hash = await bcrypt.hash(senha, 10);
+    const password_hash = await bcrypt.hash(senha, 10);
 
     const { data: createdUser, error: insertError } = await supabase
       .from("usuarios")
@@ -33,9 +35,9 @@ export async function register(req: Request, res: Response) {
         {
           email,
           nome,
-          senha_hash,
-          status: "ativo",
+          password_hash,
           nivel_acesso: "admin",
+          status: "ativo",
         },
       ])
       .select()
@@ -43,7 +45,6 @@ export async function register(req: Request, res: Response) {
 
     if (insertError) throw insertError;
 
-    // registra log
     try {
       await registerLog({
         req,
@@ -61,7 +62,7 @@ export async function register(req: Request, res: Response) {
         role: createdUser.nivel_acesso,
       },
       process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
+      { expiresIn: "8h" }
     );
 
     return res.status(201).json({
@@ -78,6 +79,9 @@ export async function register(req: Request, res: Response) {
   }
 }
 
+// =====================
+// LOGIN
+// =====================
 export async function login(req: Request, res: Response) {
   try {
     const { email, senha } = req.body;
@@ -88,7 +92,7 @@ export async function login(req: Request, res: Response) {
 
     const { data: user, error } = await supabase
       .from("usuarios")
-      .select("*")
+      .select("id, email, nome, nivel_acesso, status, password_hash, senha_hash")
       .eq("email", email)
       .maybeSingle();
 
@@ -98,7 +102,14 @@ export async function login(req: Request, res: Response) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    const senhaCorreta = await bcrypt.compare(senha, user.senha_hash || "");
+    // compatibilidade com dados antigos
+    const hash = user.password_hash || user.senha_hash;
+
+    if (!hash) {
+      return res.status(401).json({ error: "Senha não configurada" });
+    }
+
+    const senhaCorreta = await bcrypt.compare(senha, hash);
 
     if (!senhaCorreta) {
       return res.status(401).json({ error: "Credenciais inválidas" });
@@ -111,10 +122,9 @@ export async function login(req: Request, res: Response) {
         role: user.nivel_acesso,
       },
       process.env.JWT_SECRET!,
-      { expiresIn: "1h" }
+      { expiresIn: "8h" }
     );
 
-    // registra log
     try {
       await registerLog({
         req,
@@ -131,6 +141,7 @@ export async function login(req: Request, res: Response) {
         email: user.email,
         nome: user.nome,
         nivel_acesso: user.nivel_acesso,
+        status: user.status,
       },
       token,
     });
