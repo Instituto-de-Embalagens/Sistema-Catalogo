@@ -4,11 +4,11 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 const HERO_IMAGE_URL =
-  "https://unsplash.com/photos/selective-photography-of-green-leaf-plant-Rfflri94rs8" 
+  "https://images.unsplash.com/photo-1533636723495-4f5010c4c33c?auto=format&fit=crop&w=1600&q=80";
 
 export default function Index() {
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#020704] text-white">
+    <div className="relative min-h-screen overflow-x-hidden bg-[#020704] text-white">
       {/* Glow de fundo */}
       <div className="pointer-events-none absolute -left-40 top-10 h-80 w-80 rounded-full bg-emerald-500/20 blur-3xl" />
       <div className="pointer-events-none absolute -right-40 bottom-0 h-96 w-96 rounded-full bg-emerald-700/25 blur-3xl" />
