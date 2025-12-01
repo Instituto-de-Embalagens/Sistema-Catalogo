@@ -2,9 +2,9 @@
 import { Response } from "express";
 import { supabase } from "../services/supabase";
 import { AuthenticatedRequest } from "../auth/authMiddleware";
-import { appendUserToSheet } from "../lib/googleSheets";
 import bcrypt from "bcryptjs";
 import { registerLog } from "../lib/logs";
+import { appendUserViaWebhook } from "../lib/sheetsWebhook"; // <<< NOVO IMPORT
 
 /**
  * GET /users/me
@@ -130,9 +130,9 @@ export async function createUser(
       return res.status(500).json({ error: "Erro ao criar usuário" });
     }
 
-    // registra na planilha
+    // registra na planilha via Apps Script (best effort)
     try {
-      await appendUserToSheet({
+      await appendUserViaWebhook({
         email: data.email,
         nome: data.nome,
         nivel_acesso: data.nivel_acesso,
@@ -142,7 +142,7 @@ export async function createUser(
         ultimo_acesso: data.ultimo_acesso,
       });
     } catch (err) {
-      console.error("[createUser] Falha ao salvar usuário na planilha:", err);
+      console.error("[createUser] Falha ao salvar usuário na planilha via webhook:", err);
     }
 
     // log da criação

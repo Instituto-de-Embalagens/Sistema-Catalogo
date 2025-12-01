@@ -1,66 +1,86 @@
 // src/lib/sheetsWebhook.ts
-// Node 18+ já tem fetch global.
 
 const SHEETS_WEBHOOK_URL = process.env.SHEETS_WEBHOOK_URL;
 
 if (!SHEETS_WEBHOOK_URL) {
   console.warn(
-    "[SheetsWebhook] SHEETS_WEBHOOK_URL não definido. Webhook para planilha desabilitado."
+    "[SheetsWebhook] SHEETS_WEBHOOK_URL não definido. Append na planilha ficará desabilitado."
   );
 }
 
-// =============== HELPERS GENÉRICOS =================
-
-async function callWebhook(payload: any, label: string) {
+export async function appendPackagingViaWebhook(packaging: any) {
   if (!SHEETS_WEBHOOK_URL) {
-    console.warn(`[SheetsWebhook] Ignorando ${label}: sem SHEETS_WEBHOOK_URL`);
+    console.warn(
+      "[SheetsWebhook] Ignorando appendPackagingViaWebhook porque SHEETS_WEBHOOK_URL não está setado."
+    );
     return;
   }
 
   try {
     const resp = await fetch(SHEETS_WEBHOOK_URL, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "appendPackaging",
+        packaging,
+      }),
     });
 
     if (!resp.ok) {
       const text = await resp.text();
       console.error(
-        `[SheetsWebhook] Erro HTTP no webhook ${label}:`,
+        "[SheetsWebhook] Erro HTTP ao chamar Apps Script (appendPackaging):",
         resp.status,
         text
       );
     } else {
-      console.log(`[SheetsWebhook] OK via webhook → ${label}`);
+      console.log(
+        "[SheetsWebhook] Embalagem registrada na planilha via Apps Script"
+      );
     }
   } catch (err) {
-    console.error(`[SheetsWebhook] Erro geral no webhook ${label}:`, err);
+    console.error(
+      "[SheetsWebhook] Erro geral ao chamar Apps Script (appendPackaging):",
+      err
+    );
   }
 }
 
-// =============== PACKAGING =========================
+// <<< NOVO: usuários
+export async function appendUserViaWebhook(user: any) {
+  if (!SHEETS_WEBHOOK_URL) {
+    console.warn(
+      "[SheetsWebhook] Ignorando appendUserViaWebhook porque SHEETS_WEBHOOK_URL não está setado."
+    );
+    return;
+  }
 
-export async function appendPackagingViaWebhook(packaging: any) {
-  return callWebhook(
-    {
-      action: "appendPackaging",
-      packaging,
-    },
-    "appendPackaging"
-  );
-}
+  try {
+    const resp = await fetch(SHEETS_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "appendUser",
+        user,
+      }),
+    });
 
-// =============== LOCATIONS =========================
-
-export async function appendLocationViaWebhook(location: any) {
-  return callWebhook(
-    {
-      action: "appendLocation",
-      location,
-    },
-    "appendLocation"
-  );
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error(
+        "[SheetsWebhook] Erro HTTP ao chamar Apps Script (appendUser):",
+        resp.status,
+        text
+      );
+    } else {
+      console.log(
+        "[SheetsWebhook] Usuário registrado na planilha via Apps Script"
+      );
+    }
+  } catch (err) {
+    console.error(
+      "[SheetsWebhook] Erro geral ao chamar Apps Script (appendUser):",
+      err
+    );
+  }
 }
