@@ -8,13 +8,13 @@ const HERO_IMAGE_URL =
 
 export default function Index() {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-[#020704] text-white">
+    <div className="relative min-h-screen bg-[#020704] text-white">
       {/* Glow de fundo */}
       <div className="pointer-events-none absolute -left-40 top-10 h-80 w-80 rounded-full bg-emerald-500/20 blur-3xl" />
       <div className="pointer-events-none absolute -right-40 bottom-0 h-96 w-96 rounded-full bg-emerald-700/25 blur-3xl" />
 
       {/* NAVBAR */}
-      <header className="relative z-20 border-b border-white/5 bg-black/20 backdrop-blur-md">
+      <header className="sticky top-0 z-20 border-b border-white/5 bg-black/20 backdrop-blur-md">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 md:px-6">
           <div className="flex items-center gap-3">
             <img
@@ -134,14 +134,16 @@ export default function Index() {
         {/* COLUNA DIREITA – HERO */}
         <section className="relative flex flex-1 items-stretch">
           {/* imagem de fundo */}
-          <div className="relative h-[320px] w-full overflow-hidden bg-black/40 lg:h-auto">
-            <div className="absolute inset-0">
+          <div className="relative h-[320px] w-full bg-black/40 lg:h-auto">
+            <div className="absolute inset-0 overflow-hidden">
               <Image
                 src={HERO_IMAGE_URL}
                 alt="Folhagens verdes em close"
                 fill
                 priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover brightness-[0.85] saturate-150"
+                unoptimized
               />
               {/* overlay em gradiente pra mesclar com o lado esquerdo */}
               <div className="absolute inset-0 bg-gradient-to-l from-black/40 via-black/40 to-black/70" />
