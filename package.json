@@ -1,0 +1,17 @@
+{
+  "name": "sistema-catalogo",
+  "private": true,
+  "version": "0.1.0",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "lint": "pnpm -r lint",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.84.0"
+  }
+}
