@@ -6,6 +6,10 @@ async function bootstrap() {
     const PORT = Number(process.env.PORT) || 3333;
 
     console.log("Iniciando API do Catálogo...");
+    console.log("Node version:", process.version);
+console.log("OpenSSL version:", process.versions.openssl);
+console.log("NODE_OPTIONS:", process.env.NODE_OPTIONS);
+
     console.log("SPREAD-ID:", process.env.GOOGLE_SHEETS_SPREADSHEET_ID);
 
     app.listen(PORT, () => {

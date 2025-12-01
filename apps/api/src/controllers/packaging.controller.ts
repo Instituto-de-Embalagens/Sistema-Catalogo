@@ -1,13 +1,11 @@
-// src/controllers/packaging.controller.ts
 import { Response } from "express";
 import { supabase } from "../services/supabase";
 import { AuthenticatedRequest } from "../auth/authMiddleware";
-import { appendPackagingToSheet } from "../lib/googleSheets";
+import { appendPackagingViaWebhook } from "../lib/sheetsWebhook";
 import { uploadFileToDrive } from "../lib/googleDrive";
 import { registerLog } from "../lib/logs";
 
 // GET /packaging
-// filtros opcionais: ?status=ativo&material=Papel&pais=Brasil&q=texto&tag=algumaTag&page=1&pageSize=20
 export async function listPackaging(req: AuthenticatedRequest, res: Response) {
   try {
     let {
@@ -107,8 +105,8 @@ export async function createPackaging(
   res: Response
 ) {
   try {
-    const userId = req.user?.sub; // uuid pro banco
-    const userEmail = req.user?.email; // email pra planilha
+    const userId = req.user?.sub;
+    const userEmail = req.user?.email;
 
     const {
       codigo,
@@ -154,10 +152,10 @@ export async function createPackaging(
             : tags
             ? String(tags).split(",")
             : null,
-          localizacao: localizacao || null,
-          eventos: eventos || null,
-          livros: livros || null,
-          observacoes: observacoes || null,
+          localizacao,
+          eventos,
+          livros,
+          observacoes,
           status: status || "ativo",
           criado_por: userId || null,
           data_criacao: nowIso,
@@ -173,7 +171,6 @@ export async function createPackaging(
 
     console.log("[CREATE PACKAGING] Criado no Supabase:", data);
 
-    // log no sistema
     try {
       await registerLog({
         req,
@@ -184,27 +181,28 @@ export async function createPackaging(
       console.error("[createPackaging] erro ao registrar log:", logErr);
     }
 
-    // registra na planilha (best effort)
     try {
-      await appendPackagingToSheet({
+      await appendPackagingViaWebhook({
         ...data,
         criado_por: userEmail || null,
       });
-      console.log(
-        "[CREATE PACKAGING] Linha adicionada na planilha com sucesso"
-      );
     } catch (sheetErr) {
-      console.error("Erro ao registrar embalagem na planilha:", sheetErr);
+      console.error(
+        "Erro ao registrar embalagem na planilha via webhook:",
+        sheetErr
+      );
     }
 
     return res.status(201).json({ embalagem: data });
   } catch (err) {
     console.error("Erro inesperado em createPackaging:", err);
-    return res.status(500).json({ error: "Erro interno ao criar embalagem" });
+    return res
+      .status(500)
+      .json({ error: "Erro interno ao criar embalagem" });
   }
 }
 
-// PATCH /packaging/:id
+// UPDATE
 export async function updatePackaging(
   req: AuthenticatedRequest,
   res: Response
@@ -274,7 +272,6 @@ export async function updatePackaging(
       return res.status(404).json({ error: "Embalagem não encontrada" });
     }
 
-    // log de edição
     try {
       await registerLog({
         req,
@@ -294,7 +291,7 @@ export async function updatePackaging(
   }
 }
 
-// DELETE /packaging/:id  (soft delete: altera status)
+// DELETE (soft)
 export async function softDeletePackaging(
   req: AuthenticatedRequest,
   res: Response
@@ -323,7 +320,6 @@ export async function softDeletePackaging(
       return res.status(404).json({ error: "Embalagem não encontrada" });
     }
 
-    // log de arquivamento
     try {
       await registerLog({
         req,
@@ -343,7 +339,7 @@ export async function softDeletePackaging(
   }
 }
 
-// POST /packaging/upload
+// UPLOAD
 export async function uploadPackagingFile(
   req: AuthenticatedRequest,
   res: Response
@@ -369,7 +365,6 @@ export async function uploadPackagingFile(
       originalName: file.originalname,
     });
 
-    // log de upload
     try {
       await registerLog({
         req,
