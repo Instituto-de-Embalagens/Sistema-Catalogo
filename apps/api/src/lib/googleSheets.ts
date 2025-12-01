@@ -207,3 +207,34 @@ export async function appendLogToSheet(log: {
     },
   });
 }
+export async function appendLocationToSheet(location: {
+  Id: string;
+  Code: string;
+  Building: string;
+  Description?: string | null;
+  CreatedAt?: string | null;
+  CreatedBy?: string | null;
+}) {
+  const auth = getGoogleAuth();
+  const sheets = google.sheets({ version: "v4", auth });
+
+  // ORDEM EXATA DAS COLUNAS NA ABA "Locations":
+  // ID | Code | Building | Description | CreatedAt | CreatedBy
+  const row = [
+    location.Id || "",          // A: ID
+    location.Code || "",        // B: Code
+    location.Building || "",    // C: Building
+    location.Description || "", // D: Description
+    location.CreatedAt || "",   // E: CreatedAt
+    location.CreatedBy || "",   // F: CreatedBy
+  ];
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: SPREADSHEET_ID,
+    range: "Locations!A:F", // 6 colunas (A até F)
+    valueInputOption: "USER_ENTERED",
+    requestBody: {
+      values: [row],
+    },
+  });
+}
