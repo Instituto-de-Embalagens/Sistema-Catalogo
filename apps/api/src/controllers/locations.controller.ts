@@ -104,7 +104,7 @@ export async function createLocation(
   res: Response
 ) {
   try {
-    const userId = req.user?.sub;
+    const userId = req.user?.sub;    // UUID do usuário
     const userEmail = req.user?.email;
 
     const { code, building, description } = req.body as {
@@ -128,19 +128,24 @@ export async function createLocation(
           code,
           building,
           description: description || null,
-          created_at: nowIso,
-          created_by: userEmail || null,
+          created_at: nowIso,          // poderia até omitir e deixar o default now()
+          created_by: userId || null,  // <<--- AQUI: UUID, não e-mail
         },
       ])
       .select()
       .single();
 
     if (error || !data) {
-      console.error("Erro ao criar local:", error);
+      console.error("Erro ao criar local - Supabase:", {
+        message: error?.message,
+        code: error?.code,
+        details: error?.details,
+        hint: error?.hint,
+      });
       return res.status(500).json({ error: "Erro ao criar local" });
     }
 
-    // log no sistema
+    // log
     try {
       await registerLog({
         req,
@@ -151,7 +156,7 @@ export async function createLocation(
       console.error("[createLocation] erro ao registrar log:", logErr);
     }
 
-    // registra na aba "Locations" da planilha (best effort)
+    // planilha: aqui você pode continuar salvando o e-mail
     try {
       await appendLocationToSheet({
         Id: data.id,
@@ -159,7 +164,7 @@ export async function createLocation(
         Building: data.building,
         Description: data.description,
         CreatedAt: data.created_at,
-        CreatedBy: data.created_by || userEmail || null,
+        CreatedBy: userEmail || null, // <<--- planilha usa e-mail, tá ok
       });
       console.log("[CREATE LOCATION] Linha adicionada na planilha Locations");
     } catch (sheetErr) {
