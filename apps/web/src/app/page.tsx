@@ -3,17 +3,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
-// se seu arquivo estiver em apps/web/src/app/page.tsx,
-// esse caminho relativo funciona:
-import img1 from "../../public/images/img1.jpeg";
-import img2 from "../../public/images/img2.jpeg";
-import img3 from "../../public/images/img3.jpeg";
-import img4 from "../../public/images/img4.jpeg";
-
-// garante que essa página seja renderizada a cada request (e não 100% estática)
+// garante que essa página seja renderizada a cada request (não 100% estática)
 export const dynamic = "force-dynamic";
 
-const HERO_IMAGES = [img1, img2, img3, img4];
+const HERO_IMAGES = [
+  "/images/img1.jpeg",
+  "/images/img2.jpeg",
+  "/images/img3.jpeg",
+  "/images/img4.jpeg",
+];
 
 function getRandomHeroImage() {
   const index = Math.floor(Math.random() * HERO_IMAGES.length);
@@ -66,7 +64,6 @@ export default function Index() {
       <main className="relative z-10 mx-auto flex min-h-[calc(100vh-4rem)] max-w-6xl flex-col lg:flex-row">
         {/* COLUNA ESQUERDA */}
         <section className="relative flex flex-1 flex-col justify-center px-6 py-10 md:px-10 lg:px-8">
-          {/* faixa escura translucida lembrando o layout de referência */}
           <div className="pointer-events-none absolute inset-y-0 -left-40 right-10 bg-gradient-to-r from-black/80 via-black/75 to-black/20" />
 
           <div className="relative space-y-8">
@@ -92,7 +89,6 @@ export default function Index() {
               busque e explore embalagens com contexto, imagem e localização.
             </p>
 
-            {/* CTA PRINCIPAL */}
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <Link href="/login">
                 <button className="group inline-flex items-center gap-3 rounded-full bg-emerald-500 px-6 py-3 text-xs font-semibold uppercase tracking-[0.2em] text-black shadow-lg shadow-emerald-500/30 transition hover:bg-emerald-400 hover:shadow-emerald-400/40">
@@ -108,7 +104,6 @@ export default function Index() {
               </p>
             </div>
 
-            {/* INFO RÁPIDA */}
             <div className="mt-6 grid max-w-md grid-cols-3 gap-4 border-t border-white/10 pt-6 text-xs">
               <div>
                 <p className="text-[11px] tracking-[0.18em] text-emerald-300/90">
@@ -149,7 +144,6 @@ export default function Index() {
 
         {/* COLUNA DIREITA – HERO */}
         <section className="relative flex flex-1 items-stretch">
-          {/* imagem de fundo */}
           <div className="relative h-[320px] w-full bg-black/40 lg:h-auto">
             <div className="absolute inset-0 overflow-hidden">
               <Image
@@ -160,7 +154,6 @@ export default function Index() {
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover brightness-[0.85] saturate-150"
               />
-              {/* overlay em gradiente pra mesclar com o lado esquerdo */}
               <div className="absolute inset-0 bg-gradient-to-l from-black/40 via-black/40 to-black/70" />
             </div>
 
@@ -173,7 +166,6 @@ export default function Index() {
               </div>
             </div>
 
-            {/* cardzinho flutuante */}
             <div className="absolute bottom-6 left-6 max-w-xs rounded-xl bg-black/55 px-4 py-3 text-xs backdrop-blur-md">
               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-emerald-300">
                 VISUALIZAÇÃO EM TEMPO REAL
