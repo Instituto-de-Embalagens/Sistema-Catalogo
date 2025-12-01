@@ -30,7 +30,8 @@ async function handleSubmit(e: React.FormEvent) {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, senha: password }),
+      body: JSON.stringify({ email, password }),
+
     });
 
     const data = await res.json();
