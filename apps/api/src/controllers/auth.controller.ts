@@ -84,7 +84,9 @@ export async function register(req: Request, res: Response) {
 // =====================
 export async function login(req: Request, res: Response) {
   try {
-    const { email, senha } = req.body;
+    const { email } = req.body;
+    // aceita tanto "senha" quanto "password" no body
+    const senha: string | undefined = req.body.senha ?? req.body.password;
 
     if (!email || !senha) {
       return res.status(400).json({ error: "Email e senha são obrigatórios" });
@@ -102,8 +104,8 @@ export async function login(req: Request, res: Response) {
       return res.status(401).json({ error: "Credenciais inválidas" });
     }
 
-    // compatibilidade com dados antigos
-    const hash = user.password_hash || user.senha_hash;
+    // compatibilidade com dados antigos: prioriza password_hash, cai para senha_hash
+    const hash: string | null = user.password_hash || user.senha_hash;
 
     if (!hash) {
       return res.status(401).json({ error: "Senha não configurada" });
