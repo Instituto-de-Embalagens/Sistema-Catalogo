@@ -183,7 +183,7 @@ export default function DashboardPage() {
   }, [packaging]);
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground">
+    <div className="min-h-screen h-screen flex bg-background text-foreground">
       {/* SIDEBAR */}
       <aside className="hidden md:flex md:flex-col w-64 border-r bg-background/95">
         <div className="h-16 flex items-center px-5 border-b">
