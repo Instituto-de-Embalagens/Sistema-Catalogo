@@ -15,9 +15,9 @@ const NAV_ITEMS = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Embalagens", href: "/dashboard/embalagens", icon: Box },
   { label: "Cenários", href: "/dashboard/cenarios", icon: Layers },
-  { label: "Usuários", href: "/usuarios", icon: Users },
+  { label: "Usuários", href: "/dashboard/usuarios", icon: Users },
   { label: "Locais", href: "/dashboard/locais", icon: MapPin },
-  { label: "Scanner", href: "/dashboard/scanner", icon: ScanLine }, // tirei a barra dupla
+  { label: "Scanner", href: "/dashboard/scanner", icon: ScanLine }, 
 ];
 
 export function DashboardSidebar() {
@@ -47,7 +47,10 @@ export function DashboardSidebar() {
         </p>
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href ||
+            (item.href === "/dashboard" &&
+              pathname?.startsWith("/dashboard"));
 
           return (
             <Link key={item.href} href={item.href}>

@@ -1,24 +1,8 @@
 "use client";
 
-import type React from "react";
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  Box,
-  Layers,
-  Users,
-  MapPin,
-  ScanLine,
-  Moon,
-  Sun,
-  LogOut,
-  Search,
-  Filter,
-  PlusCircle,
-  Shield,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Filter, PlusCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,6 +20,9 @@ import {
   type Usuario,
 } from "../../../components/ui/user-create-dialog";
 
+import { DashboardSidebar } from "../../../components/ui/dashboard-sidebar";
+import { DashboardHeader } from "../../../components/ui/dashboard-header";
+
 type AuthUser = {
   id: string;
   email: string;
@@ -46,14 +33,9 @@ type AuthUser = {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
 
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Embalagens", href: "/dashboard/embalagens", icon: Box },
-  { label: "Cenários", href: "/dashboard/cenarios", icon: Layers },
-  { label: "Usuários", href: "/dashboard/usuarios", icon: Users },
-  { label: "Locais", href: "/dashboard/locais", icon: MapPin },
-  { label: "Scanner", href: "/dashboard/scanner", icon: ScanLine },
-];
+// =======================
+// HELPERS
+// =======================
 
 function mapNivelLabel(nivel?: string | null): string {
   if (!nivel) return "—";
@@ -76,9 +58,12 @@ function mapStatusLabel(status?: string | null): string {
   return status;
 }
 
+// =======================
+// PÁGINA
+// =======================
+
 export default function UsuariosPage() {
   const router = useRouter();
-  const pathname = usePathname();
 
   const [token, setToken] = useState<string | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(null);
@@ -215,115 +200,21 @@ export default function UsuariosPage() {
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
-      {/* SIDEBAR */}
-      <aside className="hidden md:flex md:flex-col w-64 border-r bg-background/95">
-        <div className="h-16 flex items-center px-5 border-b">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-semibold shadow-sm">
-              IE
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold leading-tight">
-                Sistema de Embalagens
-              </span>
-              <span className="text-xs text-muted-foreground">
-                Instituto de Embalagens
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 py-4 px-3 space-y-1">
-          <p className="px-2 text-xs font-medium text-muted-foreground mb-2">
-            NAVEGAÇÃO
-          </p>
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link key={item.href} href={item.href}>
-                <div
-                  className={[
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                    isActive
-                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40"
-                      : "text-muted-foreground hover:bg-muted/50",
-                  ].join(" ")}
-                >
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive ? "text-emerald-400" : "text-muted-foreground"
-                    }`}
-                  />
-                  <span className="truncate">{item.label}</span>
-                </div>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="px-4 py-3 border-t">
-          <p className="text-[10px] text-muted-foreground">
-            v1.0 • Catálogo conectado ao Supabase
-          </p>
-          <p className="text-[10px] text-muted-foreground">
-            Google Sheets • Apps Script • Node API
-          </p>
-        </div>
-      </aside>
+      <DashboardSidebar />
 
       {/* MAIN AREA */}
       <div className="flex-1 flex flex-col">
-        {/* HEADER */}
-        <header className="h-16 border-b flex items-center justify-between px-4 md:px-6 bg-background/95 backdrop-blur">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Módulo de usuários
-            </p>
-            <h2 className="text-lg font-semibold flex items-center gap-2">
-              <Shield className="w-4 h-4 text-emerald-400" />
-              Controle de acesso
-            </h2>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="icon"
-              className="rounded-full border-emerald-500/40"
-              onClick={toggleTheme}
-            >
-              {isDark ? (
-                <Moon className="w-4 h-4 text-emerald-400" />
-              ) : (
-                <Sun className="w-4 h-4 text-emerald-400" />
-              )}
-            </Button>
-
-            <div className="hidden md:flex flex-col items-end">
-              <span className="text-xs text-muted-foreground">
-                Logado como
-              </span>
-              <span className="text-sm font-medium truncate max-w-[180px]">
-                {loadingUser ? "Carregando..." : displayName}
-              </span>
-            </div>
-
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleLogout}
-              className="flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden md:inline">Sair</span>
-            </Button>
-          </div>
-        </header>
+        <DashboardHeader
+          isDark={isDark}
+          toggleTheme={toggleTheme}
+          loadingUser={loadingUser}
+          displayName={displayName}
+          onLogout={handleLogout}
+        />
 
         {/* CONTEÚDO PRINCIPAL */}
         <main className="flex-1 p-4 md:p-6 bg-muted/30">
-          <div className="space-y-6 w-full">
+          <div className="space-y-6 w-full max-w-6xl mx-auto">
             {/* TÍTULO + BOTÃO */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div className="space-y-1">
@@ -430,19 +321,16 @@ export default function UsuariosPage() {
                           <th className="px-2 py-2 text-left">Email</th>
                           <th className="px-2 py-2 text-left">Nível</th>
                           <th className="px-2 py-2 text-left">Status</th>
-                          <th className="px-2 py-2 text-left">
-                            Data criação
-                          </th>
-                          <th className="px-2 py-2 text-left">
-                            Último acesso
-                          </th>
+                          <th className="px-2 py-2 text-left">Data criação</th>
+                          <th className="px-2 py-2 text-left">Último acesso</th>
                         </tr>
                       </thead>
                       <tbody>
                         {usuarios.map((u) => (
                           <tr
                             key={u.id}
-                            className="border-b hover:bg-muted/60 transition-colors"
+                            onClick={() => router.push(`/dashboard/usuarios/${u.id}`)}
+                            className="border-b hover:bg-muted/60 transition-colors cursor-pointer"
                           >
                             <td className="px-2 py-1 max-w-[220px] truncate">
                               {u.nome}
@@ -458,16 +346,12 @@ export default function UsuariosPage() {
                             </td>
                             <td className="px-2 py-1">
                               {u.data_criacao
-                                ? new Date(
-                                    u.data_criacao
-                                  ).toLocaleString("pt-BR")
+                                ? new Date(u.data_criacao).toLocaleString("pt-BR")
                                 : "—"}
                             </td>
                             <td className="px-2 py-1">
                               {u.ultimo_acesso
-                                ? new Date(
-                                    u.ultimo_acesso
-                                  ).toLocaleString("pt-BR")
+                                ? new Date(u.ultimo_acesso).toLocaleString("pt-BR")
                                 : "—"}
                             </td>
                           </tr>
@@ -477,6 +361,7 @@ export default function UsuariosPage() {
                   </div>
                 )}
               </CardContent>
+
             </Card>
           </div>
         </main>

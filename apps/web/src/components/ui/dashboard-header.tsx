@@ -10,16 +10,14 @@ type DashboardHeaderProps = {
   loadingUser: boolean;
   displayName: string;
   onLogout: () => void;
+  customTitle?: string;
 };
 
 function getTitleFromPath(pathname: string): string {
-  // ex: "/dashboard/embalagens" -> ["dashboard", "embalagens"]
   const parts = pathname.split("/").filter(Boolean);
 
-  // fallback para "Dashboard" se não tiver nada
   const last = parts[parts.length - 1] || "dashboard";
 
-  // "embalagens-internacionais" -> "Embalagens Internacionais"
   const formatted = last
     .replace(/-/g, " ")
     .replace(/\b\w/g, (char) => char.toUpperCase());
@@ -33,21 +31,23 @@ export function DashboardHeader({
   loadingUser,
   displayName,
   onLogout,
+  customTitle,
 }: DashboardHeaderProps) {
   const pathname = usePathname();
-  const title = getTitleFromPath(pathname);
+
+  const defaultTitle = getTitleFromPath(pathname);
+  const title = customTitle || defaultTitle;
 
   return (
     <header className="h-16 border-b flex items-center justify-between px-4 md:px-6 bg-background/95 backdrop-blur">
-      {/* TÍTULO DINÂMICO A PARTIR DA URL */}
+      {/* TÍTULO */}
       <div>
         <h1 className="text-xl md:text-2xl font-semibold">
           {title}
         </h1>
-        {/* Se quiser um subtítulo genérico depois, você pode pôr aqui */}
       </div>
 
-      {/* AÇÕES: TEMA + USUÁRIO + SAIR */}
+      {/* AÇÕES */}
       <div className="flex items-center gap-3">
         {/* Toggle dark mode */}
         <Button
