@@ -1,7 +1,5 @@
 // src/lib/sheetsWebhook.ts
 
-// Se estiver rodando Node < 18, descomenta a linha abaixo e instala node-fetch:
-// import fetch from "node-fetch";
 
 const SHEETS_WEBHOOK_URL = process.env.SHEETS_WEBHOOK_URL;
 
