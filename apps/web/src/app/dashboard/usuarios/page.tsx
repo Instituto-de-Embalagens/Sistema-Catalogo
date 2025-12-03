@@ -24,15 +24,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
   Select,
   SelectTrigger,
   SelectValue,
@@ -40,22 +31,16 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 
+import {
+  UserCreateDialog,
+  type Usuario,
+} from "../../../components/ui/user-create-dialog";
+
 type AuthUser = {
   id: string;
   email: string;
   nome?: string;
   nivel_acesso?: string | null; // "admin" | "editor" | "viewer"
-};
-
-type Usuario = {
-  id: string;
-  email: string;
-  nome: string;
-  nivel_acesso?: string | null;
-  equipe_id?: string | null;
-  status?: string | null;
-  data_criacao?: string | null;
-  ultimo_acesso?: string | null;
 };
 
 const API_BASE_URL =
@@ -108,17 +93,8 @@ export default function UsuariosPage() {
   const [filterNivel, setFilterNivel] = useState<string>("todos");
   const [filterStatus, setFilterStatus] = useState<string>("todos");
 
-  // modal criação
+  // modal criação (agora só controle de open/close)
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  // campos de criação
-  const [novoEmail, setNovoEmail] = useState("");
-  const [novoNome, setNovoNome] = useState("");
-  const [novoNivel, setNovoNivel] = useState<string>("viewer");
-  const [novoStatus, setNovoStatus] = useState<string>("ativo");
-  const [novaSenha, setNovaSenha] = useState("");
 
   // ======================
   // AUTH / USER / THEME
@@ -229,68 +205,13 @@ export default function UsuariosPage() {
     fetchUsers();
   }, [token, search, filterNivel, filterStatus]);
 
-  // ======================
-  // CRIAÇÃO DE USUÁRIO
-  // ======================
-
   function openCreateModal() {
-    setCreateError(null);
-    setNovoEmail("");
-    setNovoNome("");
-    setNovoNivel("viewer");
-    setNovoStatus("ativo");
-    setNovaSenha("");
     setIsCreateOpen(true);
   }
 
-  async function handleCreateSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!token) return;
-
-    if (!novoEmail.trim() || !novoNome.trim()) {
-      setCreateError("Preencha email e nome.");
-      return;
-    }
-
-    setCreating(true);
-    setCreateError(null);
-
-    try {
-      const body = {
-        email: novoEmail.trim(),
-        nome: novoNome.trim(),
-        nivel_acesso: novoNivel,
-        status: novoStatus,
-        senha: novaSenha.trim() || undefined, // opcional
-      };
-
-      const res = await fetch(`${API_BASE_URL}/users`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setCreateError(data.error || "Erro ao criar usuário.");
-        setCreating(false);
-        return;
-      }
-
-      setIsCreateOpen(false);
-      // recarrega a lista
-      setUsuarios((prev) => [data.usuario || data, ...prev]);
-    } catch (err) {
-      console.error("Erro ao criar usuário:", err);
-      setCreateError("Erro de conexão com o servidor.");
-    } finally {
-      setCreating(false);
-    }
-  }
+  // ======================
+  // RENDER
+  // ======================
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
@@ -561,113 +482,15 @@ export default function UsuariosPage() {
         </main>
       </div>
 
-      {/* MODAL DE CRIAÇÃO */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Novo usuário</DialogTitle>
-            <DialogDescription>
-              Defina o email, nome e nível de acesso. Senha é opcional se você
-              estiver usando login via Google.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="nome">Nome completo</Label>
-                <Input
-                  id="nome"
-                  value={novoNome}
-                  onChange={(e) => setNovoNome(e.target.value)}
-                  required
-                  placeholder="Nome do usuário"
-                />
-              </div>
-
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={novoEmail}
-                  onChange={(e) => setNovoEmail(e.target.value)}
-                  required
-                  placeholder="usuario@institutoembalagens.com.br"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="nivel">Nível de acesso</Label>
-                <Select
-                  value={novoNivel}
-                  onValueChange={setNovoNivel}
-                >
-                  <SelectTrigger id="nivel">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="admin">Acesso total</SelectItem>
-                    <SelectItem value="editor">Criar e editar</SelectItem>
-                    <SelectItem value="viewer">Visualização</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="status">Status</Label>
-                <Select
-                  value={novoStatus}
-                  onValueChange={setNovoStatus}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ativo">Ativo</SelectItem>
-                    <SelectItem value="inativo">Inativo</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="senha">
-                  Senha (opcional, se não for usar só Google)
-                </Label>
-                <Input
-                  id="senha"
-                  type="password"
-                  value={novaSenha}
-                  onChange={(e) => setNovaSenha(e.target.value)}
-                  placeholder="Defina uma senha inicial (opcional)"
-                />
-              </div>
-            </div>
-
-            {createError && (
-              <p className="text-sm text-red-500">{createError}</p>
-            )}
-
-            <DialogFooter className="mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreateOpen(false)}
-                disabled={creating}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white"
-                disabled={creating}
-              >
-                {creating ? "Criando..." : "Criar usuário"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* MODAL DE CRIAÇÃO COMPONENTIZADO */}
+      <UserCreateDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        token={token}
+        onCreated={(user) => {
+          setUsuarios((prev) => [user, ...prev]);
+        }}
+      />
     </div>
   );
 }

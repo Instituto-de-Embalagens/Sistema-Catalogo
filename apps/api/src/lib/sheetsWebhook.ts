@@ -1,6 +1,3 @@
-// src/lib/sheetsWebhook.ts
-
-
 const SHEETS_WEBHOOK_URL = process.env.SHEETS_WEBHOOK_URL;
 
 if (!SHEETS_WEBHOOK_URL) {
@@ -131,4 +128,60 @@ export async function appendLocationViaWebhook(location: any) {
       err
     );
   }
+}
+
+export async function appendScenarioViaWebhook(scenario: any) {
+  if (!SHEETS_WEBHOOK_URL) {
+    console.warn(
+      "[SheetsWebhook] Ignorando appendScenarioViaWebhook porque SHEETS_WEBHOOK_URL não está setado."
+    );
+    return;
+  }
+
+  try {
+    const resp = await fetch(SHEETS_WEBHOOK_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "appendScenario",
+        scenario,
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      console.error(
+        "[SheetsWebhook] Erro HTTP ao chamar Apps Script (appendScenario):",
+        resp.status,
+        text
+      );
+    } else {
+      console.log(
+        "[SheetsWebhook] Cenário registrado na planilha via Apps Script"
+      );
+    }
+  } catch (err) {
+    console.error(
+      "[SheetsWebhook] Erro geral ao chamar Apps Script (appendScenario):",
+      err
+    );
+  }
+}
+
+export async function appendScenarioPackagingViaWebhook(pivot: any) {
+  if (!SHEETS_WEBHOOK_URL) {
+    console.warn(
+      "[SheetsWebhook] Ignorando appendScenarioPackagingViaWebhook porque SHEETS_WEBHOOK_URL não está setado."
+    );
+    return;
+  }
+
+  await fetch(SHEETS_WEBHOOK_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      action: "appendScenarioPackaging",
+      scenarioPackaging: pivot,
+    }),
+  });
 }

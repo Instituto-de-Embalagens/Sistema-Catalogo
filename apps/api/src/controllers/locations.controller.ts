@@ -3,7 +3,13 @@ import { Response } from "express";
 import { supabase } from "../services/supabase";
 import { AuthenticatedRequest } from "../auth/authMiddleware";
 import { registerLog } from "../lib/logs";
-import { appendLocationViaWebhook } from "../lib/sheetsWebhook"; // <<< novo import
+import { appendLocationViaWebhook } from "../lib/sheetsWebhook";
+
+type LocationBody = {
+  code?: string;
+  building?: string;
+  description?: string | null;
+};
 
 // ==============================
 // GET /locations
@@ -44,7 +50,7 @@ export async function listLocations(
     const { data, error, count } = await query;
 
     if (error) {
-      console.error("Erro ao listar locais:", error);
+      console.error("[listLocations] erro:", error);
       return res.status(500).json({ error: "Erro ao listar locais" });
     }
 
@@ -58,7 +64,7 @@ export async function listLocations(
       },
     });
   } catch (err) {
-    console.error("Erro inesperado em listLocations:", err);
+    console.error("[listLocations] exception:", err);
     return res.status(500).json({ error: "Erro interno ao listar locais" });
   }
 }
@@ -80,7 +86,7 @@ export async function getLocationById(
       .single();
 
     if (error) {
-      console.error("Erro ao buscar local:", error);
+      console.error("[getLocationById] erro:", error);
       return res.status(500).json({ error: "Erro ao buscar local" });
     }
 
@@ -90,7 +96,7 @@ export async function getLocationById(
 
     return res.json({ location: data });
   } catch (err) {
-    console.error("Erro inesperado em getLocationById:", err);
+    console.error("[getLocationById] exception:", err);
     return res.status(500).json({ error: "Erro interno ao buscar local" });
   }
 }
@@ -104,14 +110,10 @@ export async function createLocation(
   res: Response
 ) {
   try {
-    const userId = req.user?.sub;    // UUID do usuário (Supabase)
-    const userEmail = req.user?.email; // e-mail pra planilha (opcional)
+    const userId = req.user?.sub;      // UUID do usuário (FK no Supabase)
+    const userEmail = req.user?.email; // e-mail pra planilha
 
-    const { code, building, description } = req.body as {
-      code?: string;
-      building?: string;
-      description?: string;
-    };
+    const { code, building, description } = req.body as LocationBody;
 
     if (!code || !building) {
       return res.status(400).json({
@@ -125,18 +127,18 @@ export async function createLocation(
       .from("locations")
       .insert([
         {
-          code,
-          building,
-          description: description || null,
-          created_at: nowIso,          // pode deixar, sobrepõe o default now()
-          created_by: userId || null,  // respeita o FK pra tabela usuarios
+          code: code.trim(),
+          building: building.trim(),
+          description: description?.trim() || null,
+          created_at: nowIso,
+          created_by: userId || null,
         },
       ])
       .select()
       .single();
 
     if (error || !data) {
-      console.error("Erro ao criar local - Supabase:", {
+      console.error("[createLocation] erro Supabase:", {
         message: error?.message,
         code: error?.code,
         details: error?.details,
@@ -145,7 +147,9 @@ export async function createLocation(
       return res.status(500).json({ error: "Erro ao criar local" });
     }
 
-    // log interno
+    console.log("[CREATE LOCATION] Criado no Supabase:", data);
+
+    // log interno (não quebra fluxo se der erro)
     try {
       await registerLog({
         req,
@@ -156,7 +160,7 @@ export async function createLocation(
       console.error("[createLocation] erro ao registrar log:", logErr);
     }
 
-    // registra na planilha via Apps Script (best effort)
+    // registra na planilha via Apps Script (best effort, igual embalagem/cenário)
     try {
       await appendLocationViaWebhook({
         id: data.id,
@@ -164,20 +168,21 @@ export async function createLocation(
         building: data.building,
         description: data.description,
         created_at: data.created_at,
-        // aqui você salva o e-mail na coluna CreatedBy da planilha
-        created_by: userEmail || null,
+        created_by: userEmail || null, // na planilha vai o e-mail
       });
-      console.log("[CREATE LOCATION] Local registrado na planilha via webhook");
+      console.log(
+        "[CREATE LOCATION] Local registrado na planilha via webhook"
+      );
     } catch (sheetErr) {
       console.error(
-        "Erro ao registrar local na planilha Locations via webhook:",
+        "[createLocation] Erro ao registrar local na planilha via webhook (mas criado no Supabase ok):",
         sheetErr
       );
     }
 
     return res.status(201).json({ location: data });
   } catch (err) {
-    console.error("Erro inesperado em createLocation:", err);
+    console.error("[createLocation] exception:", err);
     return res.status(500).json({ error: "Erro interno ao criar local" });
   }
 }
@@ -192,11 +197,7 @@ export async function updateLocation(
   try {
     const userId = req.user?.sub;
     const { id } = req.params;
-    const { code, building, description } = req.body as {
-      code?: string;
-      building?: string;
-      description?: string;
-    };
+    const { code, building, description } = req.body as LocationBody;
 
     const updatePayload: Record<string, any> = {
       updated_at: new Date().toISOString(),
@@ -205,7 +206,8 @@ export async function updateLocation(
 
     if (code !== undefined) updatePayload.code = code;
     if (building !== undefined) updatePayload.building = building;
-    if (description !== undefined) updatePayload.description = description;
+    if (description !== undefined)
+      updatePayload.description = description || null;
 
     const { data, error } = await supabase
       .from("locations")
@@ -215,7 +217,7 @@ export async function updateLocation(
       .single();
 
     if (error) {
-      console.error("Erro ao atualizar local:", error);
+      console.error("[updateLocation] erro:", error);
       return res.status(500).json({ error: "Erro ao atualizar local" });
     }
 
@@ -235,14 +237,14 @@ export async function updateLocation(
 
     return res.json({ location: data });
   } catch (err) {
-    console.error("Erro inesperado em updateLocation:", err);
+    console.error("[updateLocation] exception:", err);
     return res.status(500).json({ error: "Erro interno ao atualizar local" });
   }
 }
 
 // ==============================
 // DELETE /locations/:id
-// (hard delete simples; se quiser soft-delete depois, trocamos)
+// (hard delete; se depois quiser soft-delete, a gente troca)
 // ==============================
 export async function deleteLocation(
   req: AuthenticatedRequest,
@@ -259,7 +261,7 @@ export async function deleteLocation(
       .single();
 
     if (error) {
-      console.error("Erro ao excluir local:", error);
+      console.error("[deleteLocation] erro:", error);
       return res.status(500).json({ error: "Erro ao excluir local" });
     }
 
@@ -279,7 +281,7 @@ export async function deleteLocation(
 
     return res.json({ location: data });
   } catch (err) {
-    console.error("Erro inesperado em deleteLocation:", err);
+    console.error("[deleteLocation] exception:", err);
     return res.status(500).json({ error: "Erro interno ao excluir local" });
   }
 }

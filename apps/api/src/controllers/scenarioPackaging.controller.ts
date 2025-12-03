@@ -1,9 +1,9 @@
 // src/controllers/scenarioPackaging.controller.ts
 import { Response } from "express";
 import { supabase } from "../services/supabase";
-import { appendScenarioPackagingToSheet } from "../lib/googleSheets";
 import { registerLog } from "../lib/logs";
 import { AuthenticatedRequest } from "../auth/authMiddleware";
+import { appendScenarioPackagingViaWebhook } from "../lib/sheetsWebhook"; 
 
 // helperzinho pra não brigar com TS
 function getSinglePackaging(packaging: any) {
@@ -160,11 +160,11 @@ export async function addScenarioPackaging(
       console.error("[addScenarioPackaging] erro ao registrar log:", logErr);
     }
 
-    // sincroniza cada linha na aba ScenarioPackaging
+    // sincroniza cada linha na aba ScenarioPackaging via webhook (best effort)
     try {
       await Promise.all(
         inserted.map((row) =>
-          appendScenarioPackagingToSheet({
+          appendScenarioPackagingViaWebhook({
             id: row.id,
             scenario_id: row.scenario_id,
             packaging_id: row.packaging_id,
@@ -177,7 +177,7 @@ export async function addScenarioPackaging(
         )
       );
       console.log(
-        "[addScenarioPackaging] Linhas adicionadas na aba ScenarioPackaging da planilha"
+        "[addScenarioPackaging] Linhas adicionadas na aba ScenarioPackaging da planilha via webhook"
       );
     } catch (sheetErr) {
       console.error(

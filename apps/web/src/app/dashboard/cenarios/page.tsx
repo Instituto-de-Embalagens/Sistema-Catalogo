@@ -3,34 +3,16 @@
 import type React from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import {
-  LayoutDashboard,
-  Box,
-  Layers,
-  Users,
-  MapPin,
-  ScanLine,
-  Moon,
-  Sun,
-  LogOut,
-  Search,
-  Filter,
-  PlusCircle,
-} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Search, Filter, PlusCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+
+import { DashboardSidebar } from "@/components/ui/dashboard-sidebar";
+import { DashboardHeader } from "@/components/ui/dashboard-header";
+import { ScenarioCreateDialog } from "@/components/ui/scenario-create-dialog";
 
 type User = {
   id: string;
@@ -46,7 +28,7 @@ type Scenario = {
   descricao?: string | null;
   pais?: string | null;
   local?: string | null;
-  data?: string | null; 
+  data?: string | null;
   url_imagem?: string | null;
   tags?: string[] | null;
   criado_por?: string | null;
@@ -56,18 +38,8 @@ type Scenario = {
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
 
-const NAV_ITEMS = [
-  { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Embalagens", href: "/dashboard/embalagens", icon: Box },
-  { label: "Cenários", href: "/dashboard/cenarios", icon: Layers },
-  { label: "Usuários", href: "/dashboard/usuarios", icon: Users },
-  { label: "Locais", href: "/dashboard/locais", icon: MapPin },
-  { label: "Scanner", href: "/dashboard/scanner", icon: ScanLine },
-];
-
 export default function CenariosPage() {
   const router = useRouter();
-  const pathname = usePathname();
 
   const [token, setToken] = useState<string | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -77,22 +49,9 @@ export default function CenariosPage() {
   const [loadingList, setLoadingList] = useState(true);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
 
-  // filtro simples
   const [search, setSearch] = useState("");
 
-  // modal criação
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  // campos de criação (tabela scenarios)
-  const [codigo, setCodigo] = useState("");
-  const [nome, setNome] = useState("");
-  const [descricao, setDescricao] = useState("");
-  const [pais, setPais] = useState("");
-  const [local, setLocal] = useState("");
-  const [dataFoto, setDataFoto] = useState("");
-  const [linkImagem, setLinkImagem] = useState("");
 
   // ======================
   // AUTH / USER / THEME
@@ -164,7 +123,7 @@ export default function CenariosPage() {
     (user?.nome && user.nome.trim()) || user?.email || "Usuário";
 
   // ======================
-  // LISTAGEM DE CENÁRIOS (tabela scenarios)
+  // LISTAGEM DE CENÁRIOS
   // ======================
 
   useEffect(() => {
@@ -198,177 +157,30 @@ export default function CenariosPage() {
     fetchData();
   }, [token, search]);
 
-  // ======================
-  // CRIAÇÃO DE CENÁRIO
-  // ======================
-
-  function openCreateModal() {
-    setCreateError(null);
-    setCodigo("");
-    setNome("");
-    setDescricao("");
-    setPais("");
-    setLocal("");
-    setDataFoto("");
-    setLinkImagem("");
-    setIsCreateOpen(true);
-  }
-
-  async function handleCreateSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!token) return;
-
-    if (!nome.trim()) {
-      setCreateError("Informe o nome do cenário.");
-      return;
-    }
-
-    setCreating(true);
-    setCreateError(null);
-
-    try {
-      const body = {
-        // se código vier vazio, backend pode gerar um default
-        codigo: codigo.trim() || undefined,
-        nome: nome.trim(),
-        descricao: descricao.trim() || null,
-        pais: pais.trim() || null,
-        local: local.trim() || null,
-        data: dataFoto || null, // campo "data" no schema
-        url_imagem: linkImagem.trim() || null,
-      };
-
-      const res = await fetch(`${API_BASE_URL}/scenarios`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setCreateError(data.error || "Erro ao criar cenário.");
-        setCreating(false);
-        return;
-      }
-
-      setIsCreateOpen(false);
+  function handleCreatedScenario(id?: string) {
+    // se quiser já ir pra tela de detalhes do cenário:
+    if (id) {
+      router.push(`/dashboard/cenarios/${id}`);
+    } else {
       router.refresh();
-    } catch (err) {
-      console.error("Erro ao criar cenário:", err);
-      setCreateError("Erro de conexão com o servidor.");
-    } finally {
-      setCreating(false);
     }
   }
 
   return (
     <div className="min-h-screen flex bg-background text-foreground">
-      {/* SIDEBAR */}
-      <aside className="hidden md:flex md:flex-col w-64 border-r bg-background/95">
-        <div className="h-16 flex items-center px-5 border-b">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-emerald-500 flex items-center justify-center text-white font-semibold shadow-sm">
-              IE
-            </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-semibold leading-tight">
-                Sistema de Embalagens
-              </span>
-              <span className="text-xs text-muted-foreground">
-                Instituto de Embalagens
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <nav className="flex-1 py-4 px-3 space-y-1">
-          <p className="px-2 text-xs font-medium text-muted-foreground mb-2">
-            NAVEGAÇÃO
-          </p>
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link key={item.href} href={item.href}>
-                <div
-                  className={[
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors",
-                    isActive
-                      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/40"
-                      : "text-muted-foreground hover:bg-muted/50",
-                  ].join(" ")}
-                >
-                  <Icon
-                    className={`w-4 h-4 ${
-                      isActive ? "text-emerald-400" : "text-muted-foreground"
-                    }`}
-                  />
-                  <span className="truncate">{item.label}</span>
-                </div>
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="px-4 py-3 border-t">
-          <p className="text-[10px] text-muted-foreground">
-            v1.0 • Catálogo conectado ao Supabase
-          </p>
-          <p className="text-[10px] text-muted-foreground">
-            Google Sheets • Apps Script • Node API
-          </p>
-        </div>
-      </aside>
+      {/* SIDEBAR REUTILIZADO */}
+      <DashboardSidebar />
 
       {/* MAIN AREA */}
       <div className="flex-1 flex flex-col">
-        {/* HEADER */}
-        <header className="h-16 border-b flex items-center justify-between px-4 md:px-6 bg-background/95 backdrop-blur">
-          <div>
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              Módulo de cenários
-            </p>
-            <h2 className="text-lg font-semibold">Cenários de embalagens</h2>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <Button
-              variant="outline"
-              size="icon"
-              className="rounded-full border-emerald-500/40"
-              onClick={toggleTheme}
-            >
-              {isDark ? (
-                <Moon className="w-4 h-4 text-emerald-400" />
-              ) : (
-                <Sun className="w-4 h-4 text-emerald-400" />
-              )}
-            </Button>
-
-            <div className="hidden md:flex flex-col items-end">
-              <span className="text-xs text-muted-foreground">
-                Logado como
-              </span>
-              <span className="text-sm font-medium truncate max-w-[180px]">
-                {loadingUser ? "Carregando..." : displayName}
-              </span>
-            </div>
-
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleLogout}
-              className="flex items-center gap-2"
-            >
-              <LogOut className="w-4 h-4" />
-              <span className="hidden md:inline">Sair</span>
-            </Button>
-          </div>
-        </header>
+        {/* HEADER REUTILIZADO (dinâmico pela URL, tipo "Cenários") */}
+        <DashboardHeader
+          isDark={isDark}
+          toggleTheme={toggleTheme}
+          loadingUser={loadingUser}
+          displayName={displayName}
+          onLogout={handleLogout}
+        />
 
         {/* CONTEÚDO PRINCIPAL */}
         <main className="flex-1 p-4 md:p-6 bg-muted/30">
@@ -377,13 +189,13 @@ export default function CenariosPage() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
               <div>
                 <p className="text-xs text-muted-foreground">
-                  Cada registro representa uma foto/cenário. As
-                  embalagens serão vinculadas depois na tela de detalhes.
+                  Cada registro representa uma foto/cenário. As embalagens serão
+                  vinculadas depois na tela de detalhes.
                 </p>
               </div>
 
               <Button
-                onClick={openCreateModal}
+                onClick={() => setIsCreateOpen(true)}
                 className="bg-emerald-600 hover:bg-emerald-500 text-white flex items-center gap-2"
               >
                 <PlusCircle className="w-4 h-4" />
@@ -493,117 +305,14 @@ export default function CenariosPage() {
         </main>
       </div>
 
-      {/* MODAL DE CRIAÇÃO */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Novo cenário</DialogTitle>
-            <DialogDescription>
-              Cadastre uma nova foto/cenário. As embalagens podem
-              ser vinculadas depois na tela de detalhes.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="nome">Nome do cenário</Label>
-                <Input
-                  id="nome"
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  required
-                  placeholder="Cenário para Nordeste - EMA3"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="codigo">Código</Label>
-                <Input
-                  id="codigo"
-                  value={codigo}
-                  onChange={(e) => setCodigo(e.target.value)}
-                  placeholder="Ex: SCN-0001 (opcional)"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="dataFoto">Data da foto</Label>
-                <Input
-                  id="dataFoto"
-                  type="date"
-                  value={dataFoto}
-                  onChange={(e) => setDataFoto(e.target.value)}
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="pais">País</Label>
-                <Input
-                  id="pais"
-                  value={pais}
-                  onChange={(e) => setPais(e.target.value)}
-                  placeholder="Ex: Brasil"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="local">Local</Label>
-                <Input
-                  id="local"
-                  value={local}
-                  onChange={(e) => setLocal(e.target.value)}
-                  placeholder="Fotografia interna - estúdio"
-                />
-              </div>
-
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="linkImagem">Link da imagem</Label>
-                <Input
-                  id="linkImagem"
-                  value={linkImagem}
-                  onChange={(e) => setLinkImagem(e.target.value)}
-                  placeholder="https://drive.google.com/..."
-                />
-              </div>
-
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="descricao">Descrição</Label>
-                <textarea
-                  id="descricao"
-                  value={descricao}
-                  onChange={(e) => setDescricao(e.target.value)}
-                  placeholder="Notas adicionais sobre o cenário..."
-                  rows={3}
-                  className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                />
-              </div>
-            </div>
-
-            {createError && (
-              <p className="text-sm text-red-500">{createError}</p>
-            )}
-
-            <DialogFooter className="mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreateOpen(false)}
-                disabled={creating}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white"
-                disabled={creating}
-              >
-                {creating ? "Criando..." : "Criar cenário"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* MODAL COMPONENTIZADO */}
+      <ScenarioCreateDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        token={token}
+        apiBaseUrl={API_BASE_URL}
+        onCreated={handleCreatedScenario}
+      />
     </div>
   );
 }

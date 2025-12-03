@@ -24,14 +24,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+  LocationCreateDialog,
+  type Location,
+} from "../../../components/ui/location-create-dialog"
 
 type AuthUser = {
   id: string;
@@ -40,19 +35,9 @@ type AuthUser = {
   nivel_acesso?: string | null; // "admin" | "editor" | "viewer"
 };
 
-type Location = {
-  id: string;
-  code: string;
-  building: string;
-  description: string | null;
-  created_at?: string | null;
-  created_by?: string | null;
-};
-
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:3333";
 
-// se o endpoint tiver outro nome, troca aqui:
 const API_LOCATIONS_ENDPOINT = `${API_BASE_URL}/locations`;
 
 const NAV_ITEMS = [
@@ -78,15 +63,8 @@ export default function LocaisPage() {
 
   const [search, setSearch] = useState("");
 
-  // modal criação
+  // modal criação (agora só controla abrir/fechar)
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
-  const [createError, setCreateError] = useState<string | null>(null);
-
-  // campos de criação
-  const [novoCode, setNovoCode] = useState("");
-  const [novoBuilding, setNovoBuilding] = useState("");
-  const [novaDescricao, setNovaDescricao] = useState("");
 
   // ======================
   // AUTH / USER / THEME
@@ -185,7 +163,6 @@ export default function LocaisPage() {
 
         const data = await res.json();
 
-        // Suporta tanto { items: [...] } quanto array direto
         const items: Location[] = (data.items || data || []).map(
           (loc: any) => ({
             id: loc.id,
@@ -208,62 +185,8 @@ export default function LocaisPage() {
     fetchLocais();
   }, [token, search]);
 
-  // ======================
-  // CRIAÇÃO DE LOCAL
-  // ======================
-
   function openCreateModal() {
-    setCreateError(null);
-    setNovoCode("");
-    setNovoBuilding("");
-    setNovaDescricao("");
     setIsCreateOpen(true);
-  }
-
-  async function handleCreateSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!token) return;
-
-    if (!novoCode.trim() || !novoBuilding.trim()) {
-      setCreateError("Preencha código e prédio.");
-      return;
-    }
-
-    setCreating(true);
-    setCreateError(null);
-
-    try {
-      const body = {
-        code: novoCode.trim(),
-        building: novoBuilding.trim(),
-        description: novaDescricao.trim() || null,
-      };
-
-      const res = await fetch(API_LOCATIONS_ENDPOINT, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(body),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setCreateError(data.error || "Erro ao criar local.");
-        setCreating(false);
-        return;
-      }
-
-      setIsCreateOpen(false);
-      setLocais((prev) => [data.location || data, ...prev]);
-    } catch (err) {
-      console.error("Erro ao criar local:", err);
-      setCreateError("Erro de conexão com o servidor.");
-    } finally {
-      setCreating(false);
-    }
   }
 
   return (
@@ -487,76 +410,15 @@ export default function LocaisPage() {
         </main>
       </div>
 
-      {/* MODAL DE CRIAÇÃO */}
-      <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Novo local</DialogTitle>
-            <DialogDescription>
-              Defina código, prédio e uma descrição para o local físico
-              (ex.: prédio, caixa, área de armazenagem).
-            </DialogDescription>
-          </DialogHeader>
-
-          <form className="space-y-4" onSubmit={handleCreateSubmit}>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label htmlFor="code">Código</Label>
-                <Input
-                  id="code"
-                  value={novoCode}
-                  onChange={(e) => setNovoCode(e.target.value)}
-                  required
-                  placeholder="CX-001"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <Label htmlFor="building">Prédio / área</Label>
-                <Input
-                  id="building"
-                  value={novoBuilding}
-                  onChange={(e) => setNovoBuilding(e.target.value)}
-                  required
-                  placeholder="Tagetes"
-                />
-              </div>
-
-              <div className="space-y-1 md:col-span-2">
-                <Label htmlFor="description">Descrição</Label>
-                <Input
-                  id="description"
-                  value={novaDescricao}
-                  onChange={(e) => setNovaDescricao(e.target.value)}
-                  placeholder="Caixa Tailândia, estoque alto, etc."
-                />
-              </div>
-            </div>
-
-            {createError && (
-              <p className="text-sm text-red-500">{createError}</p>
-            )}
-
-            <DialogFooter className="mt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsCreateOpen(false)}
-                disabled={creating}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                className="bg-emerald-600 hover:bg-emerald-500 text-white"
-                disabled={creating}
-              >
-                {creating ? "Criando..." : "Criar local"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* MODAL DE CRIAÇÃO COMPONENTIZADO */}
+      <LocationCreateDialog
+        open={isCreateOpen}
+        onOpenChange={setIsCreateOpen}
+        token={token}
+        onCreated={(location) => {
+          setLocais((prev) => [location, ...prev]);
+        }}
+      />
     </div>
   );
 }

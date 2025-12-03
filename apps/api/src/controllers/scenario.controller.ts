@@ -2,12 +2,23 @@
 import { Response } from "express";
 import { supabase } from "../services/supabase";
 import { AuthenticatedRequest } from "../auth/authMiddleware";
-import { appendScenarioToSheet } from "../lib/googleSheets";
+import { appendScenarioViaWebhook } from "../lib/sheetsWebhook";
 import { registerLog } from "../lib/logs";
+
+type ScenarioInsertBody = {
+  codigo?: string;
+  nome: string;
+  descricao?: string | null;
+  pais?: string | null;
+  local?: string | null;
+  data?: string | null;        // campo "data" no Supabase / planilha
+  url_imagem?: string | null;
+  tags?: string[] | string | null;
+};
 
 /**
  * GET /scenarios
- * filtros opcionais: ?q=texto&page=1&pageSize=20
+ * filtros opcionais: ?q=texto&page=1&pageSize=50
  */
 export async function listScenarios(
   req: AuthenticatedRequest,
@@ -104,6 +115,7 @@ export async function getScenarioById(
 
 /**
  * POST /scenarios
+ * Cria cenário no Supabase + registra na planilha via webhook (igual embalagens).
  */
 export async function createScenario(
   req: AuthenticatedRequest,
@@ -119,19 +131,10 @@ export async function createScenario(
       descricao,
       pais,
       local,
-      data,       // campo "Data" da planilha / "data" no Supabase
+      data,
       url_imagem,
       tags,
-    } = req.body as {
-      codigo?: string;
-      nome: string;
-      descricao?: string | null;
-      pais?: string | null;
-      local?: string | null;
-      data?: string | null;
-      url_imagem?: string | null;
-      tags?: string[] | null;
-    };
+    } = req.body as ScenarioInsertBody;
 
     if (!nome || !nome.trim()) {
       return res
@@ -146,6 +149,12 @@ export async function createScenario(
 
     const nowIso = new Date().toISOString();
 
+    const parsedTags = Array.isArray(tags)
+      ? tags
+      : tags
+      ? String(tags).split(",").map((t) => t.trim()).filter(Boolean)
+      : null;
+
     // 1) grava no Supabase
     const { data: inserted, error } = await supabase
       .from("scenarios")
@@ -158,12 +167,8 @@ export async function createScenario(
           local: local || null,
           data: data || null,
           url_imagem: url_imagem || null,
-          tags: Array.isArray(tags)
-            ? tags
-            : tags
-            ? String(tags).split(",")
-            : null,
-          criado_por: userId || null, // uuid
+          tags: parsedTags,
+          criado_por: userId || null,
           data_criacao: nowIso,
         },
       ])
@@ -177,7 +182,7 @@ export async function createScenario(
 
     console.log("[CREATE SCENARIO] Criado no Supabase:", inserted);
 
-    // 1.1) registra log
+    // 1.1) registra log (não quebra fluxo se der erro)
     try {
       await registerLog({
         req,
@@ -188,9 +193,9 @@ export async function createScenario(
       console.error("[createScenario] erro ao registrar log:", logErr);
     }
 
-    // 2) tenta registrar na planilha (não quebra fluxo se der erro)
+    // 2) tenta registrar na planilha via webhook (não quebra fluxo se der erro)
     try {
-      await appendScenarioToSheet({
+      await appendScenarioViaWebhook({
         id: inserted.id,
         codigo: inserted.codigo,
         nome: inserted.nome,
@@ -200,15 +205,16 @@ export async function createScenario(
         data: inserted.data,
         url_imagem: inserted.url_imagem,
         tags: inserted.tags,
-        criado_por: userEmail || null, // e-mail na planilha
+        criado_por: userEmail || null,         // e-mail na planilha
         data_criacao: inserted.data_criacao || nowIso,
       });
+
       console.log(
-        "[CREATE SCENARIO] Linha adicionada na aba Scenarios da planilha"
+        "[CREATE SCENARIO] Linha adicionada na aba Scenarios da planilha via webhook"
       );
     } catch (sheetErr) {
       console.error(
-        "[createScenario] Erro ao registrar cenário na planilha (mas criado no Supabase ok):",
+        "[createScenario] Erro ao registrar cenário na planilha via webhook (mas criado no Supabase ok):",
         sheetErr
       );
     }
